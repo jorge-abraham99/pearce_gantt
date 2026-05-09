@@ -97,28 +97,74 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 422 });
   }
 
-  const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc("schedule_order", {
-    p_baler_type_id: numericBalerTypeId,
-    p_assignments: plan.assignments,
-  });
+  const orderNumber = createOrderNumber();
+  const { data: order, error: orderError } = await supabaseAdmin
+    .from("stg_orders")
+    .insert({
+      order_number: orderNumber,
+      baler_type: balerTypeRes.data.name,
+      baler_type_id: numericBalerTypeId,
+      status: "scheduled",
+    })
+    .select("id, order_number")
+    .single();
 
-  if (rpcError || !rpcData) {
-    console.error("[POST /api/schedule-order] rpc error:", rpcError);
+  if (orderError || !order) {
+    console.error("[POST /api/schedule-order] order insert error:", orderError);
     return NextResponse.json(
-      { error: "Failed to persist scheduled order" },
+      { error: "Failed to create scheduled order" },
       { status: 500 },
     );
   }
 
-  const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+  const assignmentRows = plan.assignments.map((assignment) => ({
+    ...assignment,
+    order_id: order.id,
+    baler_name: balerTypeRes.data.name,
+    baler_type_id: numericBalerTypeId,
+  }));
+
+  const { error: assignmentsError } = await supabaseAdmin
+    .from("int_operation_assignments")
+    .insert(assignmentRows);
+
+  if (assignmentsError) {
+    console.error("[POST /api/schedule-order] assignment insert error:", assignmentsError);
+    await supabaseAdmin
+      .from("stg_orders")
+      .update({
+        status: "failed",
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", order.id);
+
+    return NextResponse.json(
+      { error: "Failed to persist scheduled assignments" },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
-    orderId: row.order_id,
-    orderNumber: row.order_number,
+    orderId: order.id,
+    orderNumber: order.order_number,
     balerName: balerTypeRes.data.name,
     scheduledStart: plan.scheduledStart,
     scheduledEnd: plan.scheduledEnd,
     totalScheduledHours: plan.totalScheduledHours,
-    assignmentsCreated: row.assignments_created,
+    assignmentsCreated: assignmentRows.length,
   });
+}
+
+function createOrderNumber() {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0"),
+  ].join("");
+
+  return `O${stamp}`;
 }
