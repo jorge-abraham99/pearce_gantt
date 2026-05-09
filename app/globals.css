@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  --font-body: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+  --ink: #14212b;
+  --muted: #62707d;
+  --paper: #f8f3e8;
+  --panel: rgba(255, 252, 244, 0.86);
+  --line: rgba(20, 33, 43, 0.13);
+  --accent: #c4542d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(196, 84, 45, 0.22), transparent 34rem),
+    radial-gradient(circle at 82% 12%, rgba(41, 112, 108, 0.2), transparent 30rem),
+    linear-gradient(135deg, #fbf4e6 0%, #eef2e6 48%, #e8edf0 100%);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
