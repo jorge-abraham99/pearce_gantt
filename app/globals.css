@@ -8,9 +8,12 @@
   --ink: #14212b;
   --muted: #62707d;
   --paper: #f8f3e8;
-  --panel: rgba(255, 252, 244, 0.86);
+  --panel: #ffffff;
+  --panel-2: #fbf7ed;
   --line: rgba(20, 33, 43, 0.13);
   --accent: #c4542d;
+  --today-band: rgba(196, 84, 45, 0.10);
+  --weekend: rgba(20, 33, 43, 0.04);
 }
 
 * {

@@ -1,4 +1,4 @@
-import BalerScheduleForm from "@/components/BalerScheduleForm";
+import SchedulePlanner from "@/components/planner/SchedulePlanner";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import type { BalerType, GanttAssignment } from "@/types/planner";
 
@@ -21,7 +21,8 @@ async function loadInitialData(): Promise<{
       supabaseAdmin
         .from("vw_gantt_assignments")
         .select("*")
-        .order("schedule_start", { ascending: true }),
+        .order("schedule_start", { ascending: true })
+        .order("stage_order", { ascending: true }),
     ]);
 
     if (balerTypesRes.error) throw balerTypesRes.error;
@@ -33,7 +34,8 @@ async function loadInitialData(): Promise<{
       setupError: null,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to load Supabase data";
+    const message =
+      error instanceof Error ? error.message : "Unable to load Supabase data";
     return {
       balerTypes: [],
       assignments: [],
@@ -46,34 +48,24 @@ export default async function SchedulePage() {
   const { balerTypes, assignments, setupError } = await loadInitialData();
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-5 py-8 md:px-10">
-      <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--panel)] p-8 shadow-panel backdrop-blur md:p-12">
-        <div className="max-w-3xl">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">
-            Pearce Planner Demo
-          </p>
-          <h1 className="font-display text-5xl font-semibold tracking-tight md:text-7xl">
-            Schedule a baler and see the shop floor load.
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-[var(--muted)]">
-            Pick a start date and baler type. The scheduler creates sequenced work blocks
-            across eligible workers, then renders them as a simple Gantt.
-          </p>
-        </div>
-      </section>
-
+    <main className="mx-auto flex min-h-screen w-full max-w-[120rem] flex-col gap-4 px-4 py-4 md:px-6">
       {setupError ? (
         <section className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-900">
-          <h2 className="font-display text-2xl font-semibold">Supabase setup required</h2>
+          <h2 className="font-display text-2xl font-semibold">
+            Supabase setup required
+          </h2>
           <p className="mt-2">
-            Add `.env.local` and ensure the existing database exposes the required source
-            tables, `vw_gantt_assignments`, and `schedule_order` RPC. Current load error:{" "}
-            {setupError}
+            Add `.env.local` and ensure the existing database exposes the
+            required source tables, `vw_gantt_assignments`, and `schedule_order`
+            RPC. Current load error: {setupError}
           </p>
         </section>
       ) : null}
 
-      <BalerScheduleForm initialBalerTypes={balerTypes} initialAssignments={assignments} />
+      <SchedulePlanner
+        initialBalerTypes={balerTypes}
+        initialAssignments={assignments}
+      />
     </main>
   );
 }
