@@ -159,6 +159,12 @@ export default function OrderGanttView({
           isSelected={isSelected}
           onSelect={() => onSelectOrder(order.orderId)}
           rowHeight={ORDER_ROW_HEIGHT}
+          orderSummary={{
+            totalHours: order.totalHours,
+            taskCount: order.assignments.length,
+            spanStart: order.start,
+            spanEnd: order.end,
+          }}
         />
       );
     }

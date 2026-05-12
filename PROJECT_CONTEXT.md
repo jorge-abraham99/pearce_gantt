@@ -74,7 +74,8 @@ components/planner/PlannerStats.tsx        # stats strip
 components/planner/OrderGanttView.tsx      # nested order/task rows + Day/Week toggle
 components/planner/WorkerGanttView.tsx     # one row per worker
 components/planner/GanttViewport.tsx       # shared scroll viewport, columns API, units header
-components/planner/GanttBar.tsx            # solid / umbrella bar variants
+components/planner/GanttBar.tsx            # solid / umbrella bar variants, hover/focus tooltip trigger
+components/planner/GanttBarTooltip.tsx     # portal-rendered tooltip with edge-flip
 components/planner/ScheduleOrderForm.tsx
 components/planner/SelectionDetails.tsx
 components/planner/BottomPanel.tsx
@@ -226,6 +227,26 @@ Colors are computed in the frontend (`colorForKey`) and not stored in the
 database. Palette is currently 6 colors, so order colors can repeat above 6
 visible orders.
 
+### Tooltips
+
+Each Gantt bar shows a custom tooltip on hover or keyboard focus:
+
+```text
+- Custom React component (GanttBarTooltip), not the native title attribute,
+  so the open delay is tunable.
+- Opens 80ms after mouseenter / focus, closes 60ms after mouseleave / blur.
+  Click closes immediately so the selection click feels responsive.
+- Rendered into a document.body portal so it can escape the Gantt
+  viewport's overflow:auto clipping. Position uses the bar's bounding rect
+  and flips above the bar when it would overflow the bottom edge; clamped
+  on the X axis to stay in the viewport.
+- Task tooltip:    order/baler header, stage, status chip, Worker, Start,
+                   End, Hours.
+- Umbrella (order) tooltip: order header, baler, Tasks count, Total hours,
+                            span Start, span End. OrderGanttView passes an
+                            orderSummary prop for this content.
+```
+
 ## Verification Commands
 
 Known passing checks:
@@ -344,9 +365,6 @@ Insert baler_name: balerTypeRes.data.name into int_operation_assignments rows.
 Most likely next steps:
 
 ```text
-Tooltip pass on Gantt bars: reduce hover delay and include richer details
-  (order, baler, stage, worker, start/end, hours, status) now that bars
-  carry no in-bar text.
 Expand the color palette beyond 6 entries so order colors don't repeat
   above ~6 visible orders.
 Consider replacing direct two-step inserts with a database RPC that matches
