@@ -227,6 +227,28 @@ Colors are computed in the frontend (`colorForKey`) and not stored in the
 database. Palette is currently 6 colors, so order colors can repeat above 6
 visible orders.
 
+### Gridlines
+
+The timeline body has two vertical gridline layers, drawn as CSS
+`linear-gradient` background layers in `GanttViewport.buildRowBackground`:
+
+```text
+- Strong line (var(--line), rgba(20,33,43,0.13)) at every unit boundary.
+    Day scale:  one line every DAY_WIDTH (112px).
+    Week scale: one line every WEEK_WIDTH (168px).
+- Faint line (var(--line-faint), rgba(20,33,43,0.07)) at sub-unit
+  subdivisions in week scale only: each week is divided into 7 so you
+  can read which weekday a task falls on. Day scale stays unsubdivided
+  because the unit is already one day.
+- Where a faint line coincides with a unit boundary, the strong line
+  layer covers it, so no doubled lines are visible.
+- Weekend and today-band fills (day scale) sit above the gridlines but
+  use ~4-10% alpha, so the gridlines still read through them.
+```
+
+Both opacities and the per-day-in-week pattern follow the V3 reference
+HTML, which uses the same two hairline tones.
+
 ### Tooltips
 
 Each Gantt bar shows a custom tooltip on hover or keyboard focus:
