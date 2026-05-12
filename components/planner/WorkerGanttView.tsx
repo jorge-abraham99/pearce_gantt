@@ -3,6 +3,7 @@
 import GanttBar from "@/components/planner/GanttBar";
 import GanttViewport, {
   WORKER_ROW_HEIGHT,
+  type LabelColumn,
 } from "@/components/planner/GanttViewport";
 import { colorForKey } from "@/lib/plannerViewModel";
 import type {
@@ -25,6 +26,10 @@ type WorkerGanttViewProps = {
   onSelectWorker: (workerId: Id) => void;
 };
 
+const COLUMNS: LabelColumn[] = [
+  { key: "worker", header: "Worker", width: 240 },
+];
+
 export default function WorkerGanttView({
   rows,
   timeline,
@@ -37,7 +42,7 @@ export default function WorkerGanttView({
       timeline={timeline}
       rowCount={rows.length}
       rowHeight={WORKER_ROW_HEIGHT}
-      labelHeader="Worker"
+      columns={COLUMNS}
       onRowClick={(index) => onSelectWorker(rows[index].workerId)}
       isRowSelected={(index) => {
         const row = rows[index];
@@ -47,12 +52,14 @@ export default function WorkerGanttView({
         if (selection?.type === "assignment") {
           return row.assignments.some(
             (assignment) =>
-              String(assignment.assignment_id) === String(selection.assignmentId),
+              String(assignment.assignment_id) ===
+              String(selection.assignmentId),
           );
         }
         return false;
       }}
-      renderRowLabel={(index) => {
+      renderRowCell={(index, columnKey) => {
+        if (columnKey !== "worker") return null;
         const row = rows[index];
         return (
           <div className="flex flex-col">

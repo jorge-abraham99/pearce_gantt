@@ -2,6 +2,8 @@ import type { GanttAssignment } from "@/types/planner";
 
 export type PlannerView = "orders" | "workers";
 
+export type TimelineScale = "day" | "week";
+
 export type TimelineDay = {
   date: Date;
   iso: string;
@@ -10,12 +12,32 @@ export type TimelineDay = {
   isToday: boolean;
 };
 
+export type TimelineUnit = {
+  start: Date;
+  end: Date;
+  iso: string;
+  label: string;
+  subLabel: string;
+  isCurrent: boolean;
+  isWeekend: boolean;
+};
+
 export type TimelineModel = {
   start: Date;
   end: Date;
+  scale: TimelineScale;
   days: TimelineDay[];
   totalDays: number;
+  units: TimelineUnit[];
 };
+
+export type DisplayRow =
+  | { kind: "order"; order: OrderGanttRow }
+  | {
+      kind: "task";
+      orderId: GanttAssignment["order_id"];
+      assignment: PositionedAssignment;
+    };
 
 export type PositionedAssignment = GanttAssignment & {
   leftPct: number;
@@ -114,6 +136,34 @@ function isoDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function startOfWeek(date: Date): Date {
+  const next = startOfDay(date);
+  const day = next.getDay();
+  // ISO weeks start on Monday (day 1). Sunday = 0 → roll back 6 days.
+  const offset = day === 0 ? 6 : day - 1;
+  next.setDate(next.getDate() - offset);
+  return next;
+}
+
+function isoWeekNumber(date: Date): number {
+  const target = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+  const dayNum = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  return Math.ceil(
+    ((target.getTime() - yearStart.getTime()) / DAY_MS + 1) / 7,
+  );
+}
+
+function formatWeekSubLabel(date: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+  }).format(date);
+}
+
 export function filterAssignments(
   assignments: GanttAssignment[],
   query: string,
@@ -135,7 +185,10 @@ export function filterAssignments(
   });
 }
 
-export function buildTimeline(assignments: GanttAssignment[]): TimelineModel {
+export function buildTimeline(
+  assignments: GanttAssignment[],
+  scale: TimelineScale = "day",
+): TimelineModel {
   const today = startOfDay(new Date());
 
   let rangeStart: Date;
@@ -163,6 +216,12 @@ export function buildTimeline(assignments: GanttAssignment[]): TimelineModel {
     }
   }
 
+  if (scale === "week") {
+    rangeStart = startOfWeek(rangeStart);
+    const lastWeekStart = startOfWeek(rangeEnd);
+    rangeEnd = endOfDay(addDays(lastWeekStart, 6));
+  }
+
   const totalMs = rangeEnd.getTime() - rangeStart.getTime();
   const totalDays = Math.max(1, Math.ceil(totalMs / DAY_MS));
 
@@ -179,11 +238,46 @@ export function buildTimeline(assignments: GanttAssignment[]): TimelineModel {
     });
   }
 
+  const units: TimelineUnit[] = [];
+  if (scale === "day") {
+    for (const day of days) {
+      units.push({
+        start: day.date,
+        end: endOfDay(day.date),
+        iso: day.iso,
+        label: day.label,
+        subLabel: new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(
+          day.date,
+        ),
+        isCurrent: day.isToday,
+        isWeekend: day.isWeekend,
+      });
+    }
+  } else {
+    const todayWeekStart = startOfWeek(today);
+    let cursor = startOfWeek(rangeStart);
+    while (cursor.getTime() < rangeEnd.getTime()) {
+      const weekEnd = endOfDay(addDays(cursor, 6));
+      units.push({
+        start: new Date(cursor),
+        end: weekEnd,
+        iso: isoDateKey(cursor),
+        label: `Wk ${isoWeekNumber(cursor)}`,
+        subLabel: formatWeekSubLabel(cursor),
+        isCurrent: isSameYMD(cursor, todayWeekStart),
+        isWeekend: false,
+      });
+      cursor = addDays(cursor, 7);
+    }
+  }
+
   return {
     start: rangeStart,
     end: rangeEnd,
+    scale,
     days,
     totalDays,
+    units,
   };
 }
 
@@ -212,8 +306,11 @@ export function positionAssignment(
   };
 }
 
-export function buildOrderRows(assignments: GanttAssignment[]): OrderGanttRow[] {
-  const timeline = buildTimeline(assignments);
+export function buildOrderRows(
+  assignments: GanttAssignment[],
+  scale: TimelineScale = "day",
+): OrderGanttRow[] {
+  const timeline = buildTimeline(assignments, scale);
   const grouped = new Map<string, GanttAssignment[]>();
 
   for (const assignment of assignments) {
@@ -284,8 +381,11 @@ export function buildOrderRows(assignments: GanttAssignment[]): OrderGanttRow[] 
   return rows;
 }
 
-export function buildWorkerRows(assignments: GanttAssignment[]): WorkerGanttRow[] {
-  const timeline = buildTimeline(assignments);
+export function buildWorkerRows(
+  assignments: GanttAssignment[],
+  scale: TimelineScale = "day",
+): WorkerGanttRow[] {
+  const timeline = buildTimeline(assignments, scale);
   const grouped = new Map<string, GanttAssignment[]>();
 
   for (const assignment of assignments) {
@@ -418,4 +518,15 @@ export function colorForKey(key: string | number): string {
     hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
   }
   return PALETTE[hash % PALETTE.length];
+}
+
+export function buildOrderDisplayRows(rows: OrderGanttRow[]): DisplayRow[] {
+  const out: DisplayRow[] = [];
+  for (const order of rows) {
+    out.push({ kind: "order", order });
+    for (const assignment of order.assignments) {
+      out.push({ kind: "task", orderId: order.orderId, assignment });
+    }
+  }
+  return out;
 }

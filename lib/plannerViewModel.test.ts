@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildOrderDisplayRows,
   buildOrderRows,
   buildPlannerStats,
   buildTimeline,
@@ -291,5 +292,57 @@ describe("colorForKey", () => {
   it("is deterministic for the same key", () => {
     expect(colorForKey("Welding")).toBe(colorForKey("Welding"));
     expect(colorForKey(100)).toBe(colorForKey("100"));
+  });
+});
+
+describe("buildTimeline (week)", () => {
+  it("snaps the range to Monday-aligned week buckets", () => {
+    const assignments = [
+      makeAssignment({
+        schedule_start: "2026-05-13T08:00:00.000Z",
+        schedule_end: "2026-05-15T16:00:00.000Z",
+      }),
+    ];
+    const timeline = buildTimeline(assignments, "week");
+    expect(timeline.scale).toBe("week");
+    expect(timeline.units.length).toBeGreaterThanOrEqual(1);
+    for (const unit of timeline.units) {
+      // ISO week start is Monday (day === 1).
+      expect(unit.start.getDay()).toBe(1);
+    }
+    expect(timeline.start.getDay()).toBe(1);
+  });
+});
+
+describe("buildOrderDisplayRows", () => {
+  it("produces one order row followed by its task rows in stage order", () => {
+    const assignments = [
+      makeAssignment({
+        assignment_id: 1,
+        order_id: 100,
+        stage: "Painting",
+        stage_order: 2,
+        schedule_start: "2026-05-13T08:00:00.000Z",
+        schedule_end: "2026-05-13T16:00:00.000Z",
+      }),
+      makeAssignment({
+        assignment_id: 2,
+        order_id: 100,
+        stage: "Welding",
+        stage_order: 1,
+        schedule_start: "2026-05-11T08:00:00.000Z",
+        schedule_end: "2026-05-11T16:00:00.000Z",
+      }),
+    ];
+    const rows = buildOrderRows(assignments);
+    const display = buildOrderDisplayRows(rows);
+    expect(display).toHaveLength(3);
+    expect(display[0].kind).toBe("order");
+    expect(display[1].kind).toBe("task");
+    expect(display[2].kind).toBe("task");
+    if (display[1].kind === "task" && display[2].kind === "task") {
+      expect(display[1].assignment.stage).toBe("Welding");
+      expect(display[2].assignment.stage).toBe("Painting");
+    }
   });
 });

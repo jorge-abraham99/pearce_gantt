@@ -14,7 +14,7 @@ import {
   buildWorkerRows,
   filterAssignments,
 } from "@/lib/plannerViewModel";
-import type { PlannerView } from "@/lib/plannerViewModel";
+import type { PlannerView, TimelineScale } from "@/lib/plannerViewModel";
 import type {
   BalerType,
   GanttAssignment,
@@ -38,6 +38,7 @@ export default function SchedulePlanner({
   initialAssignments,
 }: SchedulePlannerProps) {
   const [view, setView] = useState<PlannerView>("orders");
+  const [orderScale, setOrderScale] = useState<TimelineScale>("day");
   const [query, setQuery] = useState("");
   const [assignments, setAssignments] = useState(initialAssignments);
   const [selection, setSelection] = useState<Selection>(null);
@@ -50,13 +51,17 @@ export default function SchedulePlanner({
     () => filterAssignments(assignments, query),
     [assignments, query],
   );
-  const timeline = useMemo(
+  const orderTimeline = useMemo(
+    () => buildTimeline(filteredAssignments, orderScale),
+    [filteredAssignments, orderScale],
+  );
+  const workerTimeline = useMemo(
     () => buildTimeline(filteredAssignments),
     [filteredAssignments],
   );
   const orderRows = useMemo(
-    () => buildOrderRows(filteredAssignments),
-    [filteredAssignments],
+    () => buildOrderRows(filteredAssignments, orderScale),
+    [filteredAssignments, orderScale],
   );
   const workerRows = useMemo(
     () => buildWorkerRows(filteredAssignments),
@@ -150,8 +155,10 @@ export default function SchedulePlanner({
         ) : view === "orders" ? (
           <OrderGanttView
             rows={orderRows}
-            timeline={timeline}
+            timeline={orderTimeline}
             selection={effectiveSelection}
+            scale={orderScale}
+            onScaleChange={setOrderScale}
             onSelectAssignment={(assignmentId) => {
               setIsScheduleOpen(false);
               setSelection({ type: "assignment", assignmentId });
@@ -164,7 +171,7 @@ export default function SchedulePlanner({
         ) : (
           <WorkerGanttView
             rows={workerRows}
-            timeline={timeline}
+            timeline={workerTimeline}
             selection={effectiveSelection}
             onSelectAssignment={(assignmentId) => {
               setIsScheduleOpen(false);

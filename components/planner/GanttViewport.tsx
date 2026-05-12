@@ -5,19 +5,29 @@ import type { ReactNode } from "react";
 import type { TimelineModel } from "@/lib/plannerViewModel";
 
 export const DAY_WIDTH = 112;
-export const ORDER_ROW_HEIGHT = 72;
+export const WEEK_WIDTH = 168;
+export const ORDER_ROW_HEIGHT = 56;
+export const ORDER_TASK_ROW_HEIGHT = 44;
 export const WORKER_ROW_HEIGHT = 64;
-export const LABEL_COLUMN_WIDTH = 240;
+
+export type LabelColumn = {
+  key: string;
+  header: string;
+  width: number;
+};
 
 type GanttViewportProps = {
   timeline: TimelineModel;
-  rowHeight: number;
   rowCount: number;
-  labelHeader?: string;
-  renderRowLabel: (index: number) => ReactNode;
-  renderRowBars: (index: number) => ReactNode;
+  rowHeight: number | ((index: number) => number);
+  columns: LabelColumn[];
+  renderRowCell: (rowIndex: number, columnKey: string) => ReactNode;
+  renderRowBars: (rowIndex: number) => ReactNode;
   onRowClick?: (index: number) => void;
   isRowSelected?: (index: number) => boolean;
+  isRowHighlighted?: (index: number) => boolean;
+  rowClassName?: (index: number) => string;
+  headerExtra?: ReactNode;
   emptyState?: ReactNode;
 };
 
@@ -25,15 +35,20 @@ export default function GanttViewport({
   timeline,
   rowHeight,
   rowCount,
-  labelHeader = "",
-  renderRowLabel,
+  columns,
+  renderRowCell,
   renderRowBars,
   onRowClick,
   isRowSelected,
+  isRowHighlighted,
+  rowClassName,
+  headerExtra,
   emptyState,
 }: GanttViewportProps) {
-  const timelineWidth = timeline.days.length * DAY_WIDTH;
-  const totalGridWidth = LABEL_COLUMN_WIDTH + timelineWidth;
+  const unitWidth = timeline.scale === "week" ? WEEK_WIDTH : DAY_WIDTH;
+  const timelineWidth = timeline.units.length * unitWidth;
+  const labelWidth = columns.reduce((sum, col) => sum + col.width, 0);
+  const totalGridWidth = labelWidth + timelineWidth;
   const headerHeight = 44;
 
   if (rowCount === 0 && emptyState) {
@@ -44,77 +59,129 @@ export default function GanttViewport({
     );
   }
 
+  const resolveHeight = (index: number): number =>
+    typeof rowHeight === "function" ? rowHeight(index) : rowHeight;
+
   return (
     <div className="relative flex-1 overflow-auto bg-[var(--panel)]">
       <div style={{ width: totalGridWidth, minWidth: "100%" }}>
         <div
           className="sticky top-0 z-30 grid border-b border-[var(--line)] bg-[var(--panel-2)]"
           style={{
-            gridTemplateColumns: `${LABEL_COLUMN_WIDTH}px ${timelineWidth}px`,
+            gridTemplateColumns: `${labelWidth}px ${timelineWidth}px`,
             height: headerHeight,
           }}
         >
           <div
-            className="sticky left-0 z-40 flex items-end border-r border-[var(--line)] bg-[var(--panel-2)] px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)]"
-            style={{ width: LABEL_COLUMN_WIDTH }}
+            className="sticky left-0 z-40 grid border-r border-[var(--line)] bg-[var(--panel-2)]"
+            style={{
+              width: labelWidth,
+              gridTemplateColumns: columns
+                .map((col) => `${col.width}px`)
+                .join(" "),
+            }}
           >
-            {labelHeader}
+            {columns.map((col, index) => (
+              <div
+                key={col.key}
+                className={`flex items-end px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--muted)] ${
+                  index < columns.length - 1
+                    ? "border-r border-[var(--line)]"
+                    : ""
+                }`}
+              >
+                {col.header}
+              </div>
+            ))}
           </div>
           <div className="relative" style={{ width: timelineWidth }}>
-            {timeline.days.map((day, index) => (
+            {timeline.units.map((unit, index) => (
               <div
-                key={day.iso}
+                key={unit.iso}
                 className="absolute top-0 flex h-full flex-col justify-end border-r border-[var(--line)] px-2 pb-1.5"
-                style={{ left: index * DAY_WIDTH, width: DAY_WIDTH }}
+                style={{ left: index * unitWidth, width: unitWidth }}
               >
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
-                  {weekdayLabel(day.date)}
+                  {unit.subLabel}
                 </div>
                 <div
                   className={`text-sm font-semibold ${
-                    day.isToday ? "text-[var(--accent)]" : "text-[var(--ink)]"
+                    unit.isCurrent ? "text-[var(--accent)]" : "text-[var(--ink)]"
                   }`}
                 >
-                  {day.label}
+                  {unit.label}
                 </div>
               </div>
             ))}
+            {headerExtra ? (
+              <div className="pointer-events-none absolute right-2 top-1.5 z-50 flex items-start">
+                <div className="pointer-events-auto">{headerExtra}</div>
+              </div>
+            ) : null}
           </div>
         </div>
 
         <div className="relative">
           {Array.from({ length: rowCount }, (_, index) => {
-            const isSelected = isRowSelected?.(index) ?? false;
+            const selected = isRowSelected?.(index) ?? false;
+            const highlighted = isRowHighlighted?.(index) ?? false;
+            const height = resolveHeight(index);
+            const extraClass = rowClassName?.(index) ?? "";
             return (
               <div
                 key={index}
                 className={`grid border-b border-[var(--line)] ${
-                  isSelected ? "bg-[var(--today-band)]" : ""
-                }`}
+                  selected
+                    ? "bg-[var(--today-band)]"
+                    : highlighted
+                      ? "bg-[var(--panel-2)]"
+                      : ""
+                } ${extraClass}`}
                 style={{
-                  gridTemplateColumns: `${LABEL_COLUMN_WIDTH}px ${timelineWidth}px`,
+                  gridTemplateColumns: `${labelWidth}px ${timelineWidth}px`,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={onRowClick ? () => onRowClick(index) : undefined}
-                  className={`sticky left-0 z-20 flex items-center border-r border-[var(--line)] bg-[var(--panel)] px-4 text-left transition hover:bg-[var(--panel-2)] ${
-                    onRowClick ? "cursor-pointer" : "cursor-default"
-                  } ${isSelected ? "bg-[var(--panel-2)]" : ""}`}
+                <div
+                  className={`sticky left-0 z-20 grid border-r border-[var(--line)] ${
+                    selected
+                      ? "bg-[var(--today-band)]"
+                      : highlighted
+                        ? "bg-[var(--panel-2)]"
+                        : "bg-[var(--panel)]"
+                  }`}
                   style={{
-                    width: LABEL_COLUMN_WIDTH,
-                    height: rowHeight,
+                    width: labelWidth,
+                    height,
+                    gridTemplateColumns: columns
+                      .map((col) => `${col.width}px`)
+                      .join(" "),
                   }}
-                  disabled={!onRowClick}
                 >
-                  {renderRowLabel(index)}
-                </button>
+                  {columns.map((col, colIndex) => (
+                    <button
+                      key={col.key}
+                      type="button"
+                      onClick={
+                        onRowClick ? () => onRowClick(index) : undefined
+                      }
+                      disabled={!onRowClick}
+                      className={`flex items-center px-3 text-left transition hover:bg-[var(--panel-2)] ${
+                        colIndex < columns.length - 1
+                          ? "border-r border-[var(--line)]"
+                          : ""
+                      } ${onRowClick ? "cursor-pointer" : "cursor-default"}`}
+                      style={{ height }}
+                    >
+                      {renderRowCell(index, col.key)}
+                    </button>
+                  ))}
+                </div>
                 <div
                   className="relative"
                   style={{
                     width: timelineWidth,
-                    height: rowHeight,
-                    backgroundImage: buildRowBackground(timeline),
+                    height,
+                    backgroundImage: buildRowBackground(timeline, unitWidth),
                     backgroundRepeat: "no-repeat",
                   }}
                 >
@@ -129,27 +196,37 @@ export default function GanttViewport({
   );
 }
 
-function weekdayLabel(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(date);
-}
-
-function buildRowBackground(timeline: TimelineModel): string {
+function buildRowBackground(
+  timeline: TimelineModel,
+  unitWidth: number,
+): string {
   const layers: string[] = [];
-  timeline.days.forEach((day, index) => {
-    const left = index * DAY_WIDTH;
-    if (day.isWeekend) {
-      layers.push(
-        `linear-gradient(var(--weekend), var(--weekend)) ${left}px 0/${DAY_WIDTH}px 100% no-repeat`,
-      );
-    }
-    if (day.isToday) {
-      layers.push(
-        `linear-gradient(var(--today-band), var(--today-band)) ${left}px 0/${DAY_WIDTH}px 100% no-repeat`,
-      );
-    }
-  });
+  if (timeline.scale === "day") {
+    timeline.units.forEach((unit, index) => {
+      const left = index * unitWidth;
+      if (unit.isWeekend) {
+        layers.push(
+          `linear-gradient(var(--weekend), var(--weekend)) ${left}px 0/${unitWidth}px 100% no-repeat`,
+        );
+      }
+      if (unit.isCurrent) {
+        layers.push(
+          `linear-gradient(var(--today-band), var(--today-band)) ${left}px 0/${unitWidth}px 100% no-repeat`,
+        );
+      }
+    });
+  } else {
+    timeline.units.forEach((unit, index) => {
+      const left = index * unitWidth;
+      if (unit.isCurrent) {
+        layers.push(
+          `linear-gradient(var(--today-band), var(--today-band)) ${left}px 0/${unitWidth}px 100% no-repeat`,
+        );
+      }
+    });
+  }
   layers.push(
-    `linear-gradient(to right, var(--line) 1px, transparent 1px) 0 0/${DAY_WIDTH}px 100% repeat-x`,
+    `linear-gradient(to right, var(--line) 1px, transparent 1px) 0 0/${unitWidth}px 100% repeat-x`,
   );
   return layers.join(", ");
 }
