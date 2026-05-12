@@ -181,8 +181,7 @@ export default function GanttViewport({
                   style={{
                     width: timelineWidth,
                     height,
-                    backgroundImage: buildRowBackground(timeline, unitWidth),
-                    backgroundRepeat: "no-repeat",
+                    background: buildRowBackground(timeline, unitWidth),
                   }}
                 >
                   {renderRowBars(index)}
@@ -225,8 +224,18 @@ function buildRowBackground(
       }
     });
   }
+  // Strong gridline at each unit boundary.
   layers.push(
     `linear-gradient(to right, var(--line) 1px, transparent 1px) 0 0/${unitWidth}px 100% repeat-x`,
   );
+  // In week scale, add a faint gridline at every day boundary inside the
+  // week so you can read which weekday a task falls on. Day scale is
+  // already one column per day, so no sub-unit grid is needed.
+  if (timeline.scale === "week") {
+    const subdivPx = unitWidth / 7;
+    layers.push(
+      `linear-gradient(to right, var(--line-faint) 1px, transparent 1px) 0 0/${subdivPx}px 100% repeat-x`,
+    );
+  }
   return layers.join(", ");
 }
