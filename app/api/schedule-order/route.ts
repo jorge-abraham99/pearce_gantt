@@ -38,20 +38,56 @@ export async function POST(request: Request) {
   }
 
   const supabaseAdmin = getSupabaseAdmin();
-  const [balerTypeRes, requirementsRes, workersRes, existingRes] = await Promise.all([
+
+  const [
+    balerTypeRes,
+    requirementsRes,
+    workersRes,
+    workerSkillsRes,
+    defaultSchedulesRes,
+    exceptionsRes,
+    existingRes,
+  ] = await Promise.all([
     supabaseAdmin
       .from("stg_baler_types")
       .select("id, name")
       .eq("id", numericBalerTypeId)
       .is("deleted_at", null)
       .single(),
+
     supabaseAdmin
       .from("stg_baler_requirements")
       .select("*")
       .eq("baler_type_id", numericBalerTypeId)
       .is("deleted_at", null)
       .order("stage_sequence", { ascending: true }),
-    supabaseAdmin.from("int_workers").select("*").is("deleted_at", null),
+
+    // Source-of-truth workers (replaces int_workers)
+    supabaseAdmin
+      .from("stg_workers")
+      .select("id, name, hours_per_day, hours_per_week")
+      .is("deleted_at", null),
+
+    // Skills from stg_worker_skills
+    supabaseAdmin
+      .from("stg_worker_skills")
+      .select("id, worker_id, skill, name")
+      .is("deleted_at", null),
+
+    // Weekly default schedules
+    supabaseAdmin
+      .from("worker_default_schedule")
+      .select("id, worker_id, day_of_week, is_working, start_time, end_time")
+      .is("deleted_at", null),
+
+    // Availability exceptions (holidays, overtime, etc.)
+    supabaseAdmin
+      .from("worker_availability_exceptions")
+      .select("id, worker_id, exception_type, start_at, end_at, all_day, title, notes")
+      .is("deleted_at", null),
+
+    // Existing assignments for capacity accounting
+    // worker_id references stg_workers.id after the DB migration
     supabaseAdmin
       .from("int_operation_assignments")
       .select("id, worker_id, schedule_start, schedule_end, scheduled_hours, status")
@@ -61,26 +97,29 @@ export async function POST(request: Request) {
   if (balerTypeRes.error || !balerTypeRes.data) {
     return NextResponse.json({ error: "Baler type not found" }, { status: 404 });
   }
-
   if (requirementsRes.error) {
     console.error("[POST /api/schedule-order] requirements error:", requirementsRes.error);
-    return NextResponse.json(
-      { error: "Failed to load baler requirements" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to load baler requirements" }, { status: 500 });
   }
-
   if (workersRes.error) {
     console.error("[POST /api/schedule-order] workers error:", workersRes.error);
     return NextResponse.json({ error: "Failed to load workers" }, { status: 500 });
   }
-
+  if (workerSkillsRes.error) {
+    console.error("[POST /api/schedule-order] skills error:", workerSkillsRes.error);
+    return NextResponse.json({ error: "Failed to load worker skills" }, { status: 500 });
+  }
+  if (defaultSchedulesRes.error) {
+    console.error("[POST /api/schedule-order] schedules error:", defaultSchedulesRes.error);
+    return NextResponse.json({ error: "Failed to load worker schedules" }, { status: 500 });
+  }
+  if (exceptionsRes.error) {
+    console.error("[POST /api/schedule-order] exceptions error:", exceptionsRes.error);
+    return NextResponse.json({ error: "Failed to load availability exceptions" }, { status: 500 });
+  }
   if (existingRes.error) {
     console.error("[POST /api/schedule-order] assignments error:", existingRes.error);
-    return NextResponse.json(
-      { error: "Failed to load existing assignments" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to load existing assignments" }, { status: 500 });
   }
 
   let plan;
@@ -90,6 +129,9 @@ export async function POST(request: Request) {
       balerType: balerTypeRes.data,
       requirements: requirementsRes.data ?? [],
       workers: workersRes.data ?? [],
+      workerSkills: workerSkillsRes.data ?? [],
+      defaultSchedules: defaultSchedulesRes.data ?? [],
+      availabilityExceptions: exceptionsRes.data ?? [],
       existingAssignments: existingRes.data ?? [],
     });
   } catch (err) {

@@ -53,7 +53,14 @@ export type SchedulerInput = {
   startDate: string;
   balerType: BalerType;
   requirements: BalerRequirement[];
-  workers: Worker[];
+  /** Source-of-truth workers from stg_workers */
+  workers: StgWorker[];
+  /** Skills from stg_worker_skills — one row per worker+skill */
+  workerSkills: WorkerSkill[];
+  /** Weekly recurring schedule from worker_default_schedule */
+  defaultSchedules: WorkerDefaultSchedule[];
+  /** Holidays, overtime, etc. from worker_availability_exceptions */
+  availabilityExceptions: WorkerAvailabilityException[];
   existingAssignments: ExistingAssignment[];
 };
 
@@ -88,4 +95,65 @@ export type ScheduleOrderResponse = {
   scheduledEnd: string;
   totalScheduledHours: number;
   assignmentsCreated: number;
+};
+
+// ── Worker admin types ────────────────────────────────────────────────────────
+
+export type StgWorker = {
+  id: Id;
+  name: string;
+  hours_per_week: number | null;
+  hours_per_day: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type WorkerSkill = {
+  id: Id;
+  worker_id: Id;
+  name: string | null;
+  skill: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type WorkerDefaultSchedule = {
+  id?: Id;
+  worker_id: Id;
+  day_of_week: number; // 1=Mon … 7=Sun (ISO)
+  is_working: boolean;
+  start_time: string | null; // "08:00"
+  end_time: string | null;   // "17:00"
+};
+
+export type ExceptionType = "holiday" | "overtime" | "custom_shift" | "unavailable";
+
+export type WorkerAvailabilityException = {
+  id: Id;
+  worker_id: Id;
+  exception_type: ExceptionType;
+  start_at: string;
+  end_at: string;
+  all_day: boolean;
+  title: string | null;
+  notes: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  deleted_at?: string | null;
+};
+
+export type WorkerListItem = {
+  worker: StgWorker;
+  skills: WorkerSkill[];
+  defaultSchedule: WorkerDefaultSchedule[];
+  exceptions: WorkerAvailabilityException[];
+};
+
+export type WorkerDetail = {
+  worker: StgWorker;
+  skills: WorkerSkill[];
+  defaultSchedule: WorkerDefaultSchedule[];
+  exceptions: WorkerAvailabilityException[];
 };
