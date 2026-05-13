@@ -31,6 +31,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         >
           Workers
         </Link>
+        <Link
+          href="/admin/balers"
+          className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)] transition hover:text-[var(--ink)]"
+        >
+          Balers
+        </Link>
       </nav>
       {children}
     </div>
