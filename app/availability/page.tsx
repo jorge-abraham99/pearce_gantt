@@ -1,4 +1,4 @@
-import WorkersAdminShell from "@/components/admin/WorkersAdminShell";
+import AvailabilityPageShell from "@/components/admin/AvailabilityPageShell";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import type { WorkerListItem } from "@/types/planner";
 
@@ -9,26 +9,14 @@ async function loadWorkers(): Promise<{ workers: WorkerListItem[]; error: string
     const supabase = getSupabaseAdmin();
 
     const [workersRes, skillsRes, scheduleRes, exceptionsRes] = await Promise.all([
-      supabase
-        .from("stg_workers")
-        .select("*")
-        .is("deleted_at", null)
-        .order("name", { ascending: true }),
-      supabase
-        .from("stg_worker_skills")
-        .select("*")
-        .is("deleted_at", null)
-        .order("skill", { ascending: true }),
-      supabase
-        .from("worker_default_schedule")
-        .select("*")
-        .is("deleted_at", null)
-        .order("day_of_week", { ascending: true }),
+      supabase.from("stg_workers").select("*").is("deleted_at", null).order("name"),
+      supabase.from("stg_worker_skills").select("*").is("deleted_at", null).order("skill"),
+      supabase.from("worker_default_schedule").select("*").is("deleted_at", null).order("day_of_week"),
       supabase
         .from("worker_availability_exceptions")
         .select("*")
         .is("deleted_at", null)
-        .order("start_at", { ascending: true }),
+        .order("start_at"),
     ]);
 
     if (workersRes.error) throw workersRes.error;
@@ -57,7 +45,7 @@ async function loadWorkers(): Promise<{ workers: WorkerListItem[]; error: string
   }
 }
 
-export default async function WorkersAdminPage() {
+export default async function AvailabilityPage() {
   const { workers, error } = await loadWorkers();
 
   return (
@@ -68,7 +56,7 @@ export default async function WorkersAdminPage() {
           <p className="mt-1 text-sm">{error}</p>
         </section>
       ) : null}
-      <WorkersAdminShell initialWorkers={workers} />
+      <AvailabilityPageShell initialWorkers={workers} />
     </>
   );
 }

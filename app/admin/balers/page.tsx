@@ -62,14 +62,14 @@ export default async function BalersAdminPage() {
   const { balers, error } = await loadBalers();
 
   return (
-    <main className="flex min-h-[calc(100vh-4rem)] flex-col gap-4">
+    <>
       {error ? (
-        <section className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-900">
+        <section className="mb-3 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-900">
           <h2 className="font-display text-xl font-semibold">Failed to load balers</h2>
           <p className="mt-1 text-sm">{error}</p>
         </section>
       ) : null}
       <BalersAdminShell initialBalers={balers} />
-    </main>
+    </>
   );
 }

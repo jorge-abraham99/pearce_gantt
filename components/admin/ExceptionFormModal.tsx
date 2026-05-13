@@ -2,7 +2,12 @@
 
 import { useState, useTransition } from "react";
 
-import type { ExceptionType, Id, WorkerAvailabilityException } from "@/types/planner";
+import type {
+  ExceptionType,
+  Id,
+  WorkerAvailabilityException,
+  WorkerListItem,
+} from "@/types/planner";
 
 const EXCEPTION_TYPES: { value: ExceptionType; label: string }[] = [
   { value: "holiday", label: "Holiday" },
@@ -13,9 +18,12 @@ const EXCEPTION_TYPES: { value: ExceptionType; label: string }[] = [
 
 type ExceptionFormModalProps = {
   mode: "create" | "edit";
-  workerId: Id;
-  workerName: string;
-  initialDate?: string;      // "YYYY-MM-DD", used in create mode
+  /** Pre-selected worker. Omit (with `workers`) to show a dropdown. */
+  workerId?: Id;
+  workerName?: string;
+  /** Provide when workerId is not pre-set — renders a worker picker. */
+  workers?: WorkerListItem[];
+  initialDate?: string;
   initialData?: WorkerAvailabilityException;
   onSave: () => void;
   onClose: () => void;
@@ -23,13 +31,18 @@ type ExceptionFormModalProps = {
 
 export default function ExceptionFormModal({
   mode,
-  workerId,
+  workerId: fixedWorkerId,
   workerName,
+  workers,
   initialDate,
   initialData,
   onSave,
   onClose,
 }: ExceptionFormModalProps) {
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>(
+    fixedWorkerId !== undefined ? String(fixedWorkerId) : "",
+  );
+  const workerId = fixedWorkerId !== undefined ? fixedWorkerId : selectedWorkerId || undefined;
   const defaultAllDay = initialData ? initialData.all_day : true;
   const defaultType: ExceptionType = initialData ? (initialData.exception_type as ExceptionType) : "holiday";
 
@@ -63,6 +76,11 @@ export default function ExceptionFormModal({
 
   function handleSubmit() {
     setError(null);
+
+    if (!workerId) {
+      setError("Please select a worker.");
+      return;
+    }
 
     let start_at: string;
     let end_at: string;
@@ -135,7 +153,9 @@ export default function ExceptionFormModal({
             <h2 className="font-display text-xl font-semibold text-[var(--ink)]">
               {mode === "create" ? "Add exception" : "Edit exception"}
             </h2>
-            <p className="text-sm text-[var(--muted)]">{workerName}</p>
+            {workerName && (
+              <p className="text-sm text-[var(--muted)]">{workerName}</p>
+            )}
           </div>
           <button
             type="button"
@@ -149,6 +169,25 @@ export default function ExceptionFormModal({
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <div className="grid gap-4">
+            {/* Worker picker — shown when no worker was pre-selected */}
+            {fixedWorkerId === undefined && workers && workers.length > 0 && (
+              <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
+                Worker
+                <select
+                  value={selectedWorkerId}
+                  onChange={(e) => setSelectedWorkerId(e.target.value)}
+                  className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 font-normal outline-none transition focus:border-[var(--accent)]"
+                >
+                  <option value="">Select worker…</option>
+                  {workers.map((item) => (
+                    <option key={String(item.worker.id)} value={String(item.worker.id)}>
+                      {item.worker.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
             {/* Type */}
             <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
               Type
@@ -265,7 +304,7 @@ export default function ExceptionFormModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isPending}
+            disabled={isPending || !workerId}
             className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-bold uppercase tracking-[0.14em] text-white transition hover:bg-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Saving…" : "Save"}

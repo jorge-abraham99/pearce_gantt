@@ -48,24 +48,19 @@ export default async function SchedulePage() {
   const { balerTypes, assignments, setupError } = await loadInitialData();
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[120rem] flex-col gap-4 px-4 py-4 md:px-6">
+    <>
       {setupError ? (
-        <section className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-900">
-          <h2 className="font-display text-2xl font-semibold">
-            Supabase setup required
-          </h2>
-          <p className="mt-2">
-            Add `.env.local` and ensure the existing database exposes the
-            required source tables, `vw_gantt_assignments`, and `schedule_order`
-            RPC. Current load error: {setupError}
+        <section className="mb-3 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-900">
+          <h2 className="font-display text-xl font-semibold">Supabase setup required</h2>
+          <p className="mt-1 text-sm">
+            Add <code>.env.local</code> with Supabase credentials. Error: {setupError}
           </p>
         </section>
       ) : null}
-
       <SchedulePlanner
         initialBalerTypes={balerTypes}
         initialAssignments={assignments}
       />
-    </main>
+    </>
   );
 }
