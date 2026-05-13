@@ -277,6 +277,64 @@ No global state library. All state lives in `BalerScheduleForm` via `useState` /
 
 ---
 
+---
+
+## Workers admin area (`/admin/workers`)
+
+Added in May 2026. Separate from the scheduler — manages the source-of-truth worker tables.
+
+### Routes
+| Route | Description |
+|---|---|
+| `GET /admin/workers` | Worker list + availability calendar |
+| `GET /admin/workers/[id]` | Worker profile with schedule + exceptions |
+
+### API routes (all server-side via `supabaseAdmin`)
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/admin/workers` | GET | List all workers with skills, schedule, exceptions |
+| `/api/admin/workers` | POST | Create worker + skills + schedule |
+| `/api/admin/workers/[id]` | GET | Full worker detail |
+| `/api/admin/workers/[id]` | PUT | Update worker fields |
+| `/api/admin/workers/[id]` | DELETE | Soft-delete worker |
+| `/api/admin/workers/[id]/skills` | PUT | Replace full skill set |
+| `/api/admin/workers/[id]/schedule` | PUT | Replace 7-day default schedule |
+| `/api/admin/workers/[id]/exceptions` | POST | Create availability exception |
+| `/api/admin/workers/[id]/exceptions/[eid]` | PUT | Update exception |
+| `/api/admin/workers/[id]/exceptions/[eid]` | DELETE | Soft-delete exception |
+
+### Source tables (editable)
+- `stg_workers` — canonical worker records
+- `stg_worker_skills` — worker trade/skill rows
+- `worker_default_schedule` — weekly recurring schedule (7 rows per worker)
+- `worker_availability_exceptions` — holidays, overtime, custom shifts, unavailable periods
+
+### Read-only / derived tables (do not edit via admin UI)
+- `int_workers` — scheduler-facing flattened view (worker_id → stg_workers.id, not PK)
+- `int_operation_assignments` — scheduler output
+
+### Components
+| Component | Type | Description |
+|---|---|---|
+| `components/admin/WorkersAdminShell` | Client | Shell: worker list + calendar tabs, manages modals |
+| `components/admin/WorkerFormModal` | Client | Create/edit worker — name, hours, skills, weekly schedule |
+| `components/admin/AvailabilityCalendar` | Client | 28-day scrollable grid: workers × dates, color-coded exceptions |
+| `components/admin/ExceptionFormModal` | Client | Add/edit availability exception |
+| `components/admin/WorkerProfileShell` | Client | Worker detail page with schedule + exception CRUD |
+
+### Key schema caveats
+- `int_operation_assignments.worker_id` → `int_workers.id` (NOT `stg_workers.id`)
+- `stg_workers` is the editable source of truth; `int_workers` is scheduler-derived cache
+- All four admin tables currently have RLS disabled — writes are mediated server-side via `supabaseAdmin` (service role key), never exposed to the browser
+
+### Exception types
+- `holiday` — worker unavailable (amber)
+- `overtime` — extra availability block (green)
+- `custom_shift` — special working block (blue)
+- `unavailable` — temporary unavailability (red)
+
+---
+
 ## Environment variables
 
 ```env

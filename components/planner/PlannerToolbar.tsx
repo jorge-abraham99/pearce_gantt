@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import type { PlannerView } from "@/lib/plannerViewModel";
 
 type PlannerToolbarProps = {
@@ -83,6 +85,13 @@ export default function PlannerToolbar({
         >
           + Schedule order
         </button>
+
+        <Link
+          href="/admin/workers"
+          className="rounded-full border border-[var(--line)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] transition hover:border-[var(--ink)] hover:text-[var(--ink)]"
+        >
+          Workers admin
+        </Link>
       </div>
     </div>
   );
