@@ -169,21 +169,25 @@ export default function OrderGanttView({
         0.6,
         latest.leftPct + latest.widthPct - earliest.leftPct,
       );
-      const umbrella = {
-        ...earliest,
-        leftPct,
-        widthPct,
-        endDate: latest.endDate,
-      };
+      const span = { ...earliest, leftPct, widthPct, endDate: latest.endDate };
       const isSelected =
         current?.type === "order" &&
         String(current.orderId) === String(order.orderId);
+      const expanded = isOrderExpanded(order.orderId);
       return (
         <GanttBar
-          assignment={umbrella}
+          assignment={span}
           color={colorForKey(order.orderId)}
-          variant="umbrella"
-          showLabels={false}
+          // Collapsed → solid labeled bar so the summary is clear.
+          // Expanded  → faint umbrella acts as a span indicator behind the task bars.
+          variant={expanded ? "umbrella" : "solid"}
+          showLabels={!expanded}
+          labelTop={!expanded ? order.orderNumber : undefined}
+          labelBottom={
+            !expanded
+              ? `${order.balerName} · ${formatHours(order.totalHours)}h`
+              : undefined
+          }
           isSelected={isSelected}
           onSelect={() => onSelectOrder(order.orderId)}
           rowHeight={ORDER_ROW_HEIGHT}

@@ -2,58 +2,57 @@
 
 import type { PlannerStats } from "@/lib/plannerViewModel";
 
-type PlannerStatsProps = {
-  stats: PlannerStats;
-};
-
-export default function PlannerStatsStrip({ stats }: PlannerStatsProps) {
-  const cards: Array<{ label: string; value: string; hint?: string }> = [
+export default function PlannerStatsStrip({ stats }: { stats: PlannerStats }) {
+  const items: Array<{ label: string; value: string; accent?: boolean }> = [
     { label: "Orders", value: String(stats.orderCount) },
-    { label: "Assignments", value: String(stats.assignmentCount) },
-    { label: "Scheduled", value: `${formatHours(stats.scheduledHours)}h` },
     { label: "Workers", value: String(stats.workerCount) },
+    { label: "Total hours", value: `${formatHours(stats.scheduledHours)}h` },
   ];
 
-  if (stats.longestOrder) {
-    cards.push({
-      label: "Longest order",
-      value: stats.longestOrder.orderNumber,
-      hint: `${stats.longestOrder.durationDays}d`,
-    });
-  }
-  if (stats.largestIdleGap) {
-    cards.push({
-      label: "Largest gap",
-      value: stats.largestIdleGap.orderNumber,
-      hint: `${formatHours(stats.largestIdleGap.idleGapHours)}h idle`,
-    });
-  }
   if (stats.busiestWorker) {
-    cards.push({
-      label: "Busiest worker",
-      value: stats.busiestWorker.workerName,
-      hint: `${formatHours(stats.busiestWorker.totalHours)}h`,
+    items.push({
+      label: "Busiest",
+      value: initials(stats.busiestWorker.workerName),
+      accent: false,
+    });
+  }
+  if (stats.longestOrder) {
+    items.push({
+      label: "Longest",
+      value: `${stats.longestOrder.durationDays}d`,
+    });
+  }
+  if (stats.largestIdleGap && stats.largestIdleGap.idleGapHours >= 1) {
+    items.push({
+      label: "Idle gap",
+      value: `${formatHours(stats.largestIdleGap.idleGapHours)}h`,
+      accent: true,
     });
   }
 
   return (
-    <div className="flex flex-wrap gap-2 border-b border-[var(--line)] bg-[var(--panel-2)] px-5 py-3 md:px-6">
-      {cards.map((card) => (
+    <div className="flex items-stretch border-b border-[var(--line)] bg-[var(--panel-2)]">
+      {items.map((item, index) => (
         <div
-          key={`${card.label}-${card.value}`}
-          className="min-w-[7.5rem] flex-1 rounded-2xl border border-[var(--line)] bg-white px-4 py-2"
+          key={item.label}
+          className={`flex flex-col justify-center px-5 py-2.5 ${
+            index < items.length - 1 ? "border-r border-[var(--line)]" : ""
+          }`}
         >
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
-            {card.label}
+          <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-[var(--muted)]">
+            {item.label}
           </p>
-          <p className="mt-0.5 truncate font-display text-lg font-semibold text-[var(--ink)]">
-            {card.value}
+          <p
+            className={`font-display text-xl font-semibold tabular-nums leading-tight ${
+              item.accent ? "text-[var(--accent)]" : "text-[var(--ink)]"
+            }`}
+          >
+            {item.value}
           </p>
-          {card.hint ? (
-            <p className="text-xs text-[var(--muted)]">{card.hint}</p>
-          ) : null}
         </div>
       ))}
+      {/* spacer */}
+      <div className="flex-1" />
     </div>
   );
 }
@@ -61,4 +60,12 @@ export default function PlannerStatsStrip({ stats }: PlannerStatsProps) {
 function formatHours(value: number): string {
   if (Number.isInteger(value)) return String(value);
   return value.toFixed(1);
+}
+
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
 }

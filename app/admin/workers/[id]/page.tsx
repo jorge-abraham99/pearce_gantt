@@ -51,9 +51,5 @@ export default async function WorkerProfilePage({
 
   if (!detail) notFound();
 
-  return (
-    <main className="flex min-h-[calc(100vh-4rem)] flex-col gap-4">
-      <WorkerProfileShell initialDetail={detail} />
-    </main>
-  );
+  return <WorkerProfileShell initialDetail={detail} />;
 }

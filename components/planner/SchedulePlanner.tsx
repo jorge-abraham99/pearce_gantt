@@ -126,7 +126,7 @@ export default function SchedulePlanner({
       : "empty";
 
   return (
-    <div className="flex h-[calc(100vh-2rem)] min-h-[640px] flex-col overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--panel)] shadow-panel">
+    <div className="flex h-[calc(100vh-5rem)] min-h-[640px] flex-col overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--panel)] shadow-panel">
       <PlannerToolbar
         query={query}
         onQueryChange={setQuery}
@@ -137,6 +137,9 @@ export default function SchedulePlanner({
           if (!isScheduleOpen) setSelection(null);
         }}
         isScheduleActive={isScheduleOpen}
+        orderCount={stats.orderCount}
+        taskCount={stats.assignmentCount}
+        workerCount={stats.workerCount}
       />
 
       <PlannerStatsStrip stats={stats} />

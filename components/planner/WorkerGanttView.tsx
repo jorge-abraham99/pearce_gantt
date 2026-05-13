@@ -6,6 +6,14 @@ import GanttViewport, {
   type LabelColumn,
 } from "@/components/planner/GanttViewport";
 import { colorForKey } from "@/lib/plannerViewModel";
+
+function workerInitials(name: string): string {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
 import type {
   TimelineModel,
   WorkerGanttRow,
@@ -62,14 +70,22 @@ export default function WorkerGanttView({
         if (columnKey !== "worker") return null;
         const row = rows[index];
         return (
-          <div className="flex flex-col">
-            <span className="font-display text-base font-semibold text-[var(--ink)]">
-              {row.workerName}
+          <div className="flex items-center gap-3">
+            <span
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+              style={{ background: colorForKey(row.workerId) }}
+              aria-hidden
+            >
+              {workerInitials(row.workerName)}
             </span>
-            <span className="text-xs text-[var(--muted)]">
-              {formatHours(row.totalHours)}h · {row.assignmentCount}{" "}
-              assignment{row.assignmentCount === 1 ? "" : "s"}
-            </span>
+            <div className="flex flex-col leading-tight">
+              <span className="font-semibold text-[var(--ink)]">
+                {row.workerName}
+              </span>
+              <span className="text-xs text-[var(--muted)]">
+                {formatHours(row.totalHours)}h scheduled
+              </span>
+            </div>
           </div>
         );
       }}
