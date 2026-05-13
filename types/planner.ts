@@ -97,6 +97,20 @@ export type ScheduleOrderResponse = {
   assignmentsCreated: number;
 };
 
+// ── Baler admin types ────────────────────────────────────────────────────────
+
+/** Flattened view model for the Balers admin table/modal */
+export type BalerAdminRow = {
+  id: Id;
+  name: string;
+  active: boolean;
+  pressingHours: number;
+  weldingHours: number;
+  assemblyHours: number; // DB stage_name = "assembling"
+  sprayingHours: number;
+  totalHours: number;
+};
+
 // ── Worker admin types ────────────────────────────────────────────────────────
 
 export type StgWorker = {
