@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import GanttBar from "@/components/planner/GanttBar";
 import GanttViewport, {
@@ -39,8 +39,8 @@ type OrderGanttViewProps = {
 const COLUMNS: LabelColumn[] = [
   { key: "label", header: "Order / Task", width: 220 },
   { key: "worker", header: "Worker", width: 140 },
-  { key: "start", header: "Start", width: 120 },
-  { key: "end", header: "End", width: 120 },
+  { key: "start", header: "Start", width: 96 },
+  { key: "end", header: "End", width: 96 },
 ];
 
 export default function OrderGanttView({
@@ -52,7 +52,34 @@ export default function OrderGanttView({
   onSelectAssignment,
   onSelectOrder,
 }: OrderGanttViewProps) {
-  const displayRows = useMemo(() => buildOrderDisplayRows(rows), [rows]);
+  const [collapsedOrderIds, setCollapsedOrderIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const displayRows = useMemo(
+    () =>
+      buildOrderDisplayRows(rows).filter((row) => {
+        if (row.kind === "order") return true;
+        return !collapsedOrderIds.has(String(row.orderId));
+      }),
+    [collapsedOrderIds, rows],
+  );
+
+  const isOrderExpanded = (orderId: Id): boolean =>
+    !collapsedOrderIds.has(String(orderId));
+
+  const toggleOrder = (orderId: Id) => {
+    setCollapsedOrderIds((current) => {
+      const next = new Set(current);
+      const key = String(orderId);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
 
   const isRowSelected = (index: number): boolean => {
     const row = displayRows[index];
@@ -107,6 +134,7 @@ export default function OrderGanttView({
         const row = displayRows[index];
         if (row.kind === "order") {
           onSelectOrder(row.order.orderId);
+          toggleOrder(row.order.orderId);
         } else {
           onSelectAssignment(row.assignment.assignment_id);
         }
@@ -119,7 +147,7 @@ export default function OrderGanttView({
           : ""
       }
       renderRowCell={(index, columnKey) =>
-        renderCell(displayRows[index], columnKey)
+        renderCell(displayRows[index], columnKey, isOrderExpanded)
       }
       renderRowBars={(index) => renderBars(displayRows[index], selection)}
       emptyState={<EmptyState />}
@@ -186,7 +214,11 @@ export default function OrderGanttView({
   }
 }
 
-function renderCell(row: DisplayRow, columnKey: string) {
+function renderCell(
+  row: DisplayRow,
+  columnKey: string,
+  isOrderExpanded: (orderId: Id) => boolean,
+) {
   if (row.kind === "order") {
     const order = row.order;
     if (columnKey === "label") {
@@ -194,13 +226,26 @@ function renderCell(row: DisplayRow, columnKey: string) {
         order.idleGapHours >= 1
           ? ` · ${formatHours(order.idleGapHours)}h idle`
           : "";
+      const expanded = isOrderExpanded(order.orderId);
       return (
-        <div className="flex flex-col">
-          <span className="font-display text-base font-semibold text-[var(--ink)]">
-            {order.orderNumber}
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-white text-[var(--muted)]"
+            aria-hidden="true"
+          >
+            <span
+              className={`h-1.5 w-1.5 border-b border-r border-current transition-transform ${
+                expanded ? "rotate-45 -translate-y-0.5" : "-rotate-45 -translate-x-0.5"
+              }`}
+            />
           </span>
-          <span className="text-xs text-[var(--muted)]">
-            {order.balerName} · {formatHours(order.totalHours)}h{idleText}
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate font-display text-base font-semibold text-[var(--ink)]">
+              {order.orderNumber}
+            </span>
+            <span className="truncate text-xs text-[var(--muted)]">
+              {order.balerName} · {formatHours(order.totalHours)}h{idleText}
+            </span>
           </span>
         </div>
       );
@@ -215,15 +260,15 @@ function renderCell(row: DisplayRow, columnKey: string) {
     }
     if (columnKey === "start") {
       return (
-        <span className="text-xs text-[var(--muted)]">
-          {formatShortDateTime(order.start)}
+        <span className="whitespace-nowrap text-xs text-[var(--muted)]">
+          {formatCompactDateTime(order.start)}
         </span>
       );
     }
     if (columnKey === "end") {
       return (
-        <span className="text-xs text-[var(--muted)]">
-          {formatShortDateTime(order.end)}
+        <span className="whitespace-nowrap text-xs text-[var(--muted)]">
+          {formatCompactDateTime(order.end)}
         </span>
       );
     }
@@ -250,15 +295,15 @@ function renderCell(row: DisplayRow, columnKey: string) {
   }
   if (columnKey === "start") {
     return (
-      <span className="text-xs text-[var(--ink)]">
-        {formatShortDateTime(assignment.startDate)}
+      <span className="whitespace-nowrap text-xs text-[var(--ink)]">
+        {formatCompactDateTime(assignment.startDate)}
       </span>
     );
   }
   if (columnKey === "end") {
     return (
-      <span className="text-xs text-[var(--ink)]">
-        {formatShortDateTime(assignment.endDate)}
+      <span className="whitespace-nowrap text-xs text-[var(--ink)]">
+        {formatCompactDateTime(assignment.endDate)}
       </span>
     );
   }
@@ -334,12 +379,13 @@ function formatHours(value: number): string {
   return value.toFixed(1);
 }
 
-function formatShortDateTime(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
+function formatCompactDateTime(date: Date): string {
+  const time = new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   }).format(date);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${time} · ${day}/${month}`;
 }
