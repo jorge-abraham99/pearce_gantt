@@ -102,6 +102,7 @@ export default function WorkerGanttView({
               color={colorForKey(assignment.order_id)}
               labelTop={assignment.order_number}
               labelBottom={`${assignment.stage} · ${assignment.scheduled_hours}h`}
+              showLabels={false}
               isSelected={isSelected}
               onSelect={() => onSelectAssignment(assignment.assignment_id)}
               rowHeight={WORKER_ROW_HEIGHT}
