@@ -133,7 +133,6 @@ export default function OrderGanttView({
       onRowClick={(index) => {
         const row = displayRows[index];
         if (row.kind === "order") {
-          onSelectOrder(row.order.orderId);
           toggleOrder(row.order.orderId);
         } else {
           onSelectAssignment(row.assignment.assignment_id);
