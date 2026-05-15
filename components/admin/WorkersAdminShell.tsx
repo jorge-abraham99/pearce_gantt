@@ -58,7 +58,7 @@ export default function WorkersAdminShell({ initialWorkers }: WorkersAdminShellP
             Pearce Planner
           </p>
           <h1 className="font-display text-xl font-semibold leading-tight text-[var(--ink)] md:text-2xl">
-            Workers
+            Staff
           </h1>
         </div>
 
