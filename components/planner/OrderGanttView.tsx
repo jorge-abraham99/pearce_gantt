@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import GanttBar from "@/components/planner/GanttBar";
 import GanttViewport, {
@@ -31,7 +31,9 @@ type OrderGanttViewProps = {
   timeline: TimelineModel;
   selection: Selection;
   scale: TimelineScale;
+  collapsedOrderIds: Set<string>;
   onScaleChange: (scale: TimelineScale) => void;
+  onToggleOrder: (orderId: Id) => void;
   onSelectAssignment: (assignmentId: Id) => void;
   onSelectOrder: (orderId: Id) => void;
 };
@@ -48,14 +50,12 @@ export default function OrderGanttView({
   timeline,
   selection,
   scale,
+  collapsedOrderIds,
   onScaleChange,
+  onToggleOrder,
   onSelectAssignment,
   onSelectOrder,
 }: OrderGanttViewProps) {
-  const [collapsedOrderIds, setCollapsedOrderIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-
   const displayRows = useMemo(
     () =>
       buildOrderDisplayRows(rows).filter((row) => {
@@ -67,19 +67,6 @@ export default function OrderGanttView({
 
   const isOrderExpanded = (orderId: Id): boolean =>
     !collapsedOrderIds.has(String(orderId));
-
-  const toggleOrder = (orderId: Id) => {
-    setCollapsedOrderIds((current) => {
-      const next = new Set(current);
-      const key = String(orderId);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  };
 
   const isRowSelected = (index: number): boolean => {
     const row = displayRows[index];
@@ -133,7 +120,7 @@ export default function OrderGanttView({
       onRowClick={(index) => {
         const row = displayRows[index];
         if (row.kind === "order") {
-          toggleOrder(row.order.orderId);
+          onToggleOrder(row.order.orderId);
         } else {
           onSelectAssignment(row.assignment.assignment_id);
         }
