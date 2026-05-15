@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import BottomPanel from "@/components/planner/BottomPanel";
 import OrderGanttView from "@/components/planner/OrderGanttView";
@@ -33,6 +33,31 @@ type SchedulePlannerProps = {
   initialAssignments: GanttAssignment[];
 };
 
+const COLLAPSED_ORDER_STORAGE_KEY = "pearce-gantt:collapsed-orders";
+
+function readStoredCollapsedOrderIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+
+  try {
+    const raw = window.sessionStorage.getItem(COLLAPSED_ORDER_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.map((value) => String(value)));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeStoredCollapsedOrderIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+
+  window.sessionStorage.setItem(
+    COLLAPSED_ORDER_STORAGE_KEY,
+    JSON.stringify(Array.from(ids)),
+  );
+}
+
 export default function SchedulePlanner({
   initialBalerTypes,
   initialAssignments,
@@ -41,6 +66,9 @@ export default function SchedulePlanner({
   const [orderScale, setOrderScale] = useState<TimelineScale>("day");
   const [query, setQuery] = useState("");
   const [assignments, setAssignments] = useState(initialAssignments);
+  const [collapsedOrderIds, setCollapsedOrderIds] = useState<Set<string>>(
+    readStoredCollapsedOrderIds,
+  );
   const [selection, setSelection] = useState<Selection>(null);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [lastSchedule, setLastSchedule] =
@@ -71,6 +99,10 @@ export default function SchedulePlanner({
     () => buildPlannerStats(filteredAssignments),
     [filteredAssignments],
   );
+
+  useEffect(() => {
+    writeStoredCollapsedOrderIds(collapsedOrderIds);
+  }, [collapsedOrderIds]);
 
   const effectiveSelection = useMemo<Selection>(() => {
     if (!selection) return null;
@@ -119,6 +151,19 @@ export default function SchedulePlanner({
       });
   }
 
+  function toggleOrder(orderId: Id) {
+    setCollapsedOrderIds((current) => {
+      const next = new Set(current);
+      const key = String(orderId);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
   const bottomMode: "schedule" | "details" | "empty" = isScheduleOpen
     ? "schedule"
     : effectiveSelection
@@ -161,7 +206,9 @@ export default function SchedulePlanner({
             timeline={orderTimeline}
             selection={effectiveSelection}
             scale={orderScale}
+            collapsedOrderIds={collapsedOrderIds}
             onScaleChange={setOrderScale}
+            onToggleOrder={toggleOrder}
             onSelectAssignment={(assignmentId) => {
               setIsScheduleOpen(false);
               setSelection({ type: "assignment", assignmentId });
