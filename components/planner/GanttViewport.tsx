@@ -6,6 +6,7 @@ import type { TimelineModel } from "@/lib/plannerViewModel";
 
 export const DAY_WIDTH = 112;
 export const WEEK_WIDTH = 168;
+export const MONTH_WIDTH = 184;
 export const ORDER_ROW_HEIGHT = 56;
 export const ORDER_TASK_ROW_HEIGHT = 44;
 export const WORKER_ROW_HEIGHT = 64;
@@ -45,7 +46,12 @@ export default function GanttViewport({
   headerExtra,
   emptyState,
 }: GanttViewportProps) {
-  const unitWidth = timeline.scale === "week" ? WEEK_WIDTH : DAY_WIDTH;
+  const unitWidth =
+    timeline.scale === "month"
+      ? MONTH_WIDTH
+      : timeline.scale === "week"
+        ? WEEK_WIDTH
+        : DAY_WIDTH;
   const timelineWidth = timeline.units.length * unitWidth;
   const labelWidth = columns.reduce((sum, col) => sum + col.width, 0);
   const totalGridWidth = labelWidth + timelineWidth;
@@ -228,11 +234,15 @@ function buildRowBackground(
   layers.push(
     `linear-gradient(to right, var(--line) 1px, transparent 1px) 0 0/${unitWidth}px 100% repeat-x`,
   );
-  // In week scale, add a faint gridline at every day boundary inside the
-  // week so you can read which weekday a task falls on. Day scale is
-  // already one column per day, so no sub-unit grid is needed.
+  // In compressed scales, add faint internal guides to keep long schedules
+  // readable without making every sub-period a full timeline column.
   if (timeline.scale === "week") {
     const subdivPx = unitWidth / 7;
+    layers.push(
+      `linear-gradient(to right, var(--line-faint) 1px, transparent 1px) 0 0/${subdivPx}px 100% repeat-x`,
+    );
+  } else if (timeline.scale === "month") {
+    const subdivPx = unitWidth / 4;
     layers.push(
       `linear-gradient(to right, var(--line-faint) 1px, transparent 1px) 0 0/${subdivPx}px 100% repeat-x`,
     );

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildOrderDisplayRows,
@@ -11,6 +11,10 @@ import {
   positionAssignment,
 } from "@/lib/plannerViewModel";
 import type { GanttAssignment } from "@/types/planner";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 function makeAssignment(overrides: Partial<GanttAssignment> = {}): GanttAssignment {
   return {
@@ -311,6 +315,47 @@ describe("buildTimeline (week)", () => {
       expect(unit.start.getDay()).toBe(1);
     }
     expect(timeline.start.getDay()).toBe(1);
+  });
+});
+
+describe("buildTimeline (month)", () => {
+  it("snaps the range to calendar month buckets", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-15T12:00:00.000Z"));
+
+    const assignments = [
+      makeAssignment({
+        schedule_start: "2026-05-13T08:00:00.000Z",
+        schedule_end: "2026-07-02T16:00:00.000Z",
+      }),
+    ];
+    const timeline = buildTimeline(assignments, "month");
+
+    expect(timeline.scale).toBe("month");
+    expect(timeline.units.map((unit) => unit.iso)).toEqual([
+      "2026-05",
+      "2026-06",
+      "2026-07",
+    ]);
+    expect(timeline.start.getDate()).toBe(1);
+    expect(timeline.end.getMonth()).toBe(6);
+    expect(timeline.end.getDate()).toBe(31);
+    expect(timeline.units[0].isCurrent).toBe(true);
+  });
+
+  it("keeps assignment positioning bounded in month scale", () => {
+    const assignments = [
+      makeAssignment({
+        schedule_start: "2026-05-11T08:00:00.000Z",
+        schedule_end: "2026-06-03T16:00:00.000Z",
+      }),
+    ];
+    const timeline = buildTimeline(assignments, "month");
+    const positioned = positionAssignment(assignments[0], timeline);
+
+    expect(positioned.leftPct).toBeGreaterThanOrEqual(0);
+    expect(positioned.widthPct).toBeGreaterThan(0);
+    expect(positioned.leftPct + positioned.widthPct).toBeLessThanOrEqual(100.001);
   });
 });
 

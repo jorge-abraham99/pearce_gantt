@@ -16,7 +16,6 @@ import type {
   DisplayRow,
   OrderGanttRow,
   TimelineModel,
-  TimelineScale,
 } from "@/lib/plannerViewModel";
 import type { Id } from "@/types/planner";
 
@@ -30,9 +29,7 @@ type OrderGanttViewProps = {
   rows: OrderGanttRow[];
   timeline: TimelineModel;
   selection: Selection;
-  scale: TimelineScale;
   collapsedOrderIds: Set<string>;
-  onScaleChange: (scale: TimelineScale) => void;
   onToggleOrder: (orderId: Id) => void;
   onSelectAssignment: (assignmentId: Id) => void;
   onSelectOrder: (orderId: Id) => void;
@@ -49,9 +46,7 @@ export default function OrderGanttView({
   rows,
   timeline,
   selection,
-  scale,
   collapsedOrderIds,
-  onScaleChange,
   onToggleOrder,
   onSelectAssignment,
   onSelectOrder,
@@ -114,9 +109,6 @@ export default function OrderGanttView({
           : ORDER_TASK_ROW_HEIGHT
       }
       columns={COLUMNS}
-      headerExtra={
-        <ScaleToggle scale={scale} onChange={onScaleChange} />
-      }
       onRowClick={(index) => {
         const row = displayRows[index];
         if (row.kind === "order") {
@@ -298,59 +290,6 @@ function renderCell(
     );
   }
   return null;
-}
-
-function ScaleToggle({
-  scale,
-  onChange,
-}: {
-  scale: TimelineScale;
-  onChange: (scale: TimelineScale) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Timeline scale"
-      className="flex items-center rounded-full border border-[var(--line)] bg-white p-0.5 text-[10px] font-bold uppercase tracking-[0.18em] shadow-sm"
-    >
-      <ScaleTab
-        label="Day"
-        isSelected={scale === "day"}
-        onClick={() => onChange("day")}
-      />
-      <ScaleTab
-        label="Week"
-        isSelected={scale === "week"}
-        onClick={() => onChange("week")}
-      />
-    </div>
-  );
-}
-
-function ScaleTab({
-  label,
-  isSelected,
-  onClick,
-}: {
-  label: string;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={isSelected}
-      onClick={onClick}
-      className={`rounded-full px-3 py-1 transition ${
-        isSelected
-          ? "bg-[var(--ink)] text-white"
-          : "text-[var(--muted)] hover:text-[var(--ink)]"
-      }`}
-    >
-      {label}
-    </button>
-  );
 }
 
 function EmptyState() {
