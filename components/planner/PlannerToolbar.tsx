@@ -81,7 +81,7 @@ export default function PlannerToolbar({
           aria-label="Planner view"
           className="flex items-center rounded-full border border-[var(--line)] bg-white p-0.5 text-sm font-semibold"
         >
-          <ViewTab label="Schedule" isSelected={view === "orders"} onClick={() => onViewChange("orders")} />
+          <ViewTab label="Orders" isSelected={view === "orders"} onClick={() => onViewChange("orders")} />
           <ViewTab label="Workers" isSelected={view === "workers"} onClick={() => onViewChange("workers")} />
         </div>
 
