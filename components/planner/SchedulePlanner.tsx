@@ -106,6 +106,7 @@ export default function SchedulePlanner({
   const [workerScale, setWorkerScale] = useState<TimelineScale>("day");
   const [filters, setFilters] = useState<PlannerFilters>(readStoredFilters);
   const [assignments, setAssignments] = useState(initialAssignments);
+  const [customers, setCustomers] = useState(initialCustomers);
   const [collapsedOrderIds, setCollapsedOrderIds] = useState<Set<string>>(
     readStoredCollapsedOrderIds,
   );
@@ -124,8 +125,8 @@ export default function SchedulePlanner({
     [assignments],
   );
   const customerOptions = useMemo(
-    () => buildCustomerOptions(initialCustomers, assignments),
-    [initialCustomers, assignments],
+    () => buildCustomerOptions(customers, assignments),
+    [customers, assignments],
   );
   const orderTimeline = useMemo(
     () => buildTimeline(filteredAssignments, orderScale),
@@ -183,6 +184,7 @@ export default function SchedulePlanner({
   function handleScheduled(response: ScheduleOrderResponse) {
     setLastSchedule(response);
     setRefreshError(null);
+    setCustomers((current) => ensureCustomerOption(current, response.customer));
 
     void fetch("/api/gantt", { cache: "no-store" })
       .then(async (res) => {
@@ -296,7 +298,7 @@ export default function SchedulePlanner({
       <BottomPanel
         mode={bottomMode}
         balerTypes={initialBalerTypes}
-        customers={initialCustomers}
+        customers={customers}
         selection={effectiveSelection}
         assignments={assignments}
         orderRows={orderRows}
@@ -357,6 +359,30 @@ function buildCustomerOptions(
 
   return Array.from(options.values()).sort((left, right) =>
     left.localeCompare(right, undefined, { sensitivity: "base" }),
+  );
+}
+
+function ensureCustomerOption(
+  customers: Customer[],
+  customerName: string,
+): Customer[] {
+  const name = customerName.trim();
+  if (!name) return customers;
+
+  const exists = customers.some(
+    (customer) => customer.name.trim().toLowerCase() === name.toLowerCase(),
+  );
+  if (exists) return customers;
+
+  return [
+    ...customers,
+    {
+      id: name,
+      name,
+      active: true,
+    },
+  ].sort((left, right) =>
+    left.name.localeCompare(right.name, undefined, { sensitivity: "base" }),
   );
 }
 

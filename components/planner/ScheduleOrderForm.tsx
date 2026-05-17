@@ -15,6 +15,8 @@ type ScheduleOrderFormProps = {
   onClose: () => void;
 };
 
+const NEW_CUSTOMER_VALUE = "__new_customer__";
+
 function todayDateValue() {
   const date = new Date();
   const year = date.getFullYear();
@@ -33,11 +35,14 @@ export default function ScheduleOrderForm({
   const [balerTypeId, setBalerTypeId] = useState<string>(
     balerTypes[0] ? String(balerTypes[0].id) : "",
   );
-  const [customer, setCustomer] = useState<string>(
-    customers[0] ? customers[0].name : "",
+  const [customerSelection, setCustomerSelection] = useState<string>(
+    customers[0] ? customers[0].name : NEW_CUSTOMER_VALUE,
   );
+  const [newCustomer, setNewCustomer] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const customer =
+    customerSelection === NEW_CUSTOMER_VALUE ? newCustomer : customerSelection;
 
   function submit() {
     setError(null);
@@ -46,7 +51,11 @@ export default function ScheduleOrderForm({
         const scheduleRes = await fetch("/api/schedule-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ balerTypeId, customer, startDate }),
+          body: JSON.stringify({
+            balerTypeId,
+            customer: customer.trim(),
+            startDate,
+          }),
         });
         const json = await scheduleRes.json();
         if (!scheduleRes.ok) {
@@ -95,20 +104,26 @@ export default function ScheduleOrderForm({
         <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
           Customer
           <select
-            value={customer}
-            onChange={(event) => setCustomer(event.target.value)}
-            disabled={customers.length === 0}
+            value={customerSelection}
+            onChange={(event) => setCustomerSelection(event.target.value)}
             className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 outline-none transition focus:border-[var(--accent)]"
           >
-            {customers.length === 0 ? (
-              <option value="">No customers available</option>
-            ) : null}
             {customers.map((item) => (
               <option key={String(item.id)} value={item.name}>
                 {item.name}
               </option>
             ))}
+            <option value={NEW_CUSTOMER_VALUE}>Add new customer...</option>
           </select>
+          {customerSelection === NEW_CUSTOMER_VALUE ? (
+            <input
+              type="text"
+              value={newCustomer}
+              onChange={(event) => setNewCustomer(event.target.value)}
+              placeholder="Customer name"
+              className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 outline-none transition focus:border-[var(--accent)]"
+            />
+          ) : null}
         </label>
         <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
           Baler type
