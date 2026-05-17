@@ -1,10 +1,11 @@
 "use client";
 
-import type { PlannerView } from "@/lib/plannerViewModel";
+import type { PlannerFilters, PlannerView } from "@/lib/plannerViewModel";
 
 type PlannerToolbarProps = {
-  query: string;
-  onQueryChange: (value: string) => void;
+  filters: PlannerFilters;
+  onFilterChange: (filters: PlannerFilters) => void;
+  taskOptions: string[];
   view: PlannerView;
   onViewChange: (view: PlannerView) => void;
   onScheduleClick: () => void;
@@ -26,8 +27,9 @@ const VIEW_META: Record<PlannerView, { title: string; subtitle: (o: number, t: n
 };
 
 export default function PlannerToolbar({
-  query,
-  onQueryChange,
+  filters,
+  onFilterChange,
+  taskOptions,
   view,
   onViewChange,
   onScheduleClick,
@@ -51,9 +53,9 @@ export default function PlannerToolbar({
       </div>
 
       <div className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-3">
-        {/* Search */}
-        <label className="relative flex min-w-[12rem] flex-1 items-center md:max-w-xs">
-          <span className="sr-only">Search</span>
+        {/* Filters */}
+        <label className="relative flex min-w-[11rem] flex-1 items-center md:max-w-[13rem]">
+          <span className="sr-only">Filter by order number</span>
           <svg
             aria-hidden
             className="absolute left-3 h-3.5 w-3.5 text-[var(--muted)]"
@@ -66,13 +68,44 @@ export default function PlannerToolbar({
             <path d="m14 14 3 3" strokeLinecap="round" />
           </svg>
           <input
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder={view === "orders" ? "Search order, stage…" : "Search worker…"}
-            aria-label="Search planner"
+            value={filters.orderNumber}
+            onChange={(e) =>
+              onFilterChange({ ...filters, orderNumber: e.target.value })
+            }
+            placeholder="Order number"
+            aria-label="Filter by order number"
             type="search"
             className="w-full rounded-full border border-[var(--line)] bg-white py-1.5 pl-8 pr-4 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
           />
+        </label>
+
+        <label className="relative flex min-w-[11rem] flex-1 items-center md:max-w-[13rem]">
+          <span className="sr-only">Filter by task or operation</span>
+          <select
+            value={filters.task}
+            onChange={(e) =>
+              onFilterChange({ ...filters, task: e.target.value })
+            }
+            aria-label="Filter by task or operation"
+            className="w-full appearance-none rounded-full border border-[var(--line)] bg-white py-1.5 pl-4 pr-8 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+          >
+            <option value="">All operations</option>
+            {taskOptions.map((task) => (
+              <option key={task} value={task}>
+                {task}
+              </option>
+            ))}
+          </select>
+          <svg
+            aria-hidden
+            className="pointer-events-none absolute right-3 h-3.5 w-3.5 text-[var(--muted)]"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <path d="m5 7 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </label>
 
         {/* View toggle */}

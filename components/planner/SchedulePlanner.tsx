@@ -14,7 +14,11 @@ import {
   buildWorkerRows,
   filterAssignments,
 } from "@/lib/plannerViewModel";
-import type { PlannerView, TimelineScale } from "@/lib/plannerViewModel";
+import type {
+  PlannerFilters,
+  PlannerView,
+  TimelineScale,
+} from "@/lib/plannerViewModel";
 import type {
   BalerType,
   GanttAssignment,
@@ -34,6 +38,11 @@ type SchedulePlannerProps = {
 };
 
 const COLLAPSED_ORDER_STORAGE_KEY = "pearce-gantt:collapsed-orders";
+const FILTER_STORAGE_KEY = "pearce-gantt:planner-filters";
+const EMPTY_FILTERS: PlannerFilters = {
+  orderNumber: "",
+  task: "",
+};
 
 function readStoredCollapsedOrderIds(): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -58,6 +67,31 @@ function writeStoredCollapsedOrderIds(ids: Set<string>) {
   );
 }
 
+function readStoredFilters(): PlannerFilters {
+  if (typeof window === "undefined") return EMPTY_FILTERS;
+
+  try {
+    const raw = window.sessionStorage.getItem(FILTER_STORAGE_KEY);
+    if (!raw) return EMPTY_FILTERS;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return EMPTY_FILTERS;
+
+    return {
+      orderNumber:
+        typeof parsed.orderNumber === "string" ? parsed.orderNumber : "",
+      task: typeof parsed.task === "string" ? parsed.task : "",
+    };
+  } catch {
+    return EMPTY_FILTERS;
+  }
+}
+
+function writeStoredFilters(filters: PlannerFilters) {
+  if (typeof window === "undefined") return;
+
+  window.sessionStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
+}
+
 export default function SchedulePlanner({
   initialBalerTypes,
   initialAssignments,
@@ -65,7 +99,7 @@ export default function SchedulePlanner({
   const [view, setView] = useState<PlannerView>("orders");
   const [orderScale, setOrderScale] = useState<TimelineScale>("day");
   const [workerScale, setWorkerScale] = useState<TimelineScale>("day");
-  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState<PlannerFilters>(readStoredFilters);
   const [assignments, setAssignments] = useState(initialAssignments);
   const [collapsedOrderIds, setCollapsedOrderIds] = useState<Set<string>>(
     readStoredCollapsedOrderIds,
@@ -77,8 +111,12 @@ export default function SchedulePlanner({
   const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const filteredAssignments = useMemo(
-    () => filterAssignments(assignments, query),
-    [assignments, query],
+    () => filterAssignments(assignments, filters),
+    [assignments, filters],
+  );
+  const taskOptions = useMemo(
+    () => buildTaskOptions(assignments),
+    [assignments],
   );
   const orderTimeline = useMemo(
     () => buildTimeline(filteredAssignments, orderScale),
@@ -104,6 +142,10 @@ export default function SchedulePlanner({
   useEffect(() => {
     writeStoredCollapsedOrderIds(collapsedOrderIds);
   }, [collapsedOrderIds]);
+
+  useEffect(() => {
+    writeStoredFilters(filters);
+  }, [filters]);
 
   const effectiveSelection = useMemo<Selection>(() => {
     if (!selection) return null;
@@ -174,8 +216,9 @@ export default function SchedulePlanner({
   return (
     <div className="flex h-[calc(100vh-5rem)] min-h-[640px] flex-col overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--panel)] shadow-panel">
       <PlannerToolbar
-        query={query}
-        onQueryChange={setQuery}
+        filters={filters}
+        onFilterChange={setFilters}
+        taskOptions={taskOptions}
         view={view}
         onViewChange={setView}
         onScheduleClick={() => {
@@ -206,7 +249,7 @@ export default function SchedulePlanner({
         {assignments.length === 0 ? (
           <EmptyState onSchedule={() => setIsScheduleOpen(true)} />
         ) : filteredAssignments.length === 0 ? (
-          <NoMatchState onClear={() => setQuery("")} />
+          <NoMatchState onClear={() => setFilters(EMPTY_FILTERS)} />
         ) : view === "orders" ? (
           <OrderGanttView
             rows={orderRows}
@@ -260,6 +303,23 @@ export default function SchedulePlanner({
   );
 }
 
+function buildTaskOptions(assignments: GanttAssignment[]): string[] {
+  const options = new Map<string, string>();
+
+  for (const assignment of assignments) {
+    const task = assignment.stage.trim();
+    if (!task) continue;
+    const key = task.toLowerCase();
+    if (!options.has(key)) {
+      options.set(key, task);
+    }
+  }
+
+  return Array.from(options.values()).sort((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: "base" }),
+  );
+}
+
 function EmptyState({ onSchedule }: { onSchedule: () => void }) {
   return (
     <div className="flex flex-1 items-center justify-center bg-[var(--panel)] p-10">
@@ -287,14 +347,14 @@ function NoMatchState({ onClear }: { onClear: () => void }) {
     <div className="flex flex-1 items-center justify-center bg-[var(--panel)] p-10">
       <div className="rounded-3xl border border-dashed border-[var(--line)] bg-white/60 p-10 text-center">
         <p className="font-display text-2xl font-semibold">
-          No assignments match your search.
+          No assignments match your filters.
         </p>
         <button
           type="button"
           onClick={onClear}
           className="mt-3 rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] hover:border-[var(--ink)] hover:text-[var(--ink)]"
         >
-          Clear search
+          Clear filters
         </button>
       </div>
     </div>

@@ -47,29 +47,61 @@ describe("filterAssignments", () => {
     }),
   ];
 
-  it("returns all assignments when query is empty", () => {
-    expect(filterAssignments(assignments, "")).toHaveLength(3);
-    expect(filterAssignments(assignments, "   ")).toHaveLength(3);
+  it("returns all assignments when filters are empty", () => {
+    expect(
+      filterAssignments(assignments, { orderNumber: "", task: "" }),
+    ).toHaveLength(3);
+    expect(
+      filterAssignments(assignments, { orderNumber: "   ", task: "   " }),
+    ).toHaveLength(3);
   });
 
-  it("matches by worker name (case-insensitive)", () => {
-    const result = filterAssignments(assignments, "alex");
-    expect(result.map((a) => a.assignment_id)).toEqual([1]);
+  it("does not match worker name", () => {
+    const result = filterAssignments(assignments, {
+      orderNumber: "alex",
+      task: "",
+    });
+    expect(result).toHaveLength(0);
   });
 
-  it("matches by stage", () => {
-    const result = filterAssignments(assignments, "paint");
+  it("matches by exact task", () => {
+    const result = filterAssignments(assignments, {
+      orderNumber: "",
+      task: "Painting",
+    });
     expect(result.map((a) => a.assignment_id)).toEqual([2]);
   });
 
   it("matches by order number", () => {
-    const result = filterAssignments(assignments, "O-200");
+    const result = filterAssignments(assignments, {
+      orderNumber: "O-200",
+      task: "",
+    });
     expect(result.map((a) => a.assignment_id)).toEqual([3]);
   });
 
-  it("matches by baler name", () => {
-    const result = filterAssignments(assignments, "hb880");
-    expect(result.map((a) => a.assignment_id)).toEqual([3]);
+  it("applies order number and task together", () => {
+    const result = filterAssignments(assignments, {
+      orderNumber: "O-100",
+      task: "Welding",
+    });
+    expect(result.map((a) => a.assignment_id)).toEqual([1]);
+  });
+
+  it("does not match baler name", () => {
+    const result = filterAssignments(assignments, {
+      orderNumber: "hb880",
+      task: "",
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it("matches task case-insensitively", () => {
+    const result = filterAssignments(assignments, {
+      orderNumber: "",
+      task: "welding",
+    });
+    expect(result.map((a) => a.assignment_id)).toEqual([1, 3]);
   });
 });
 
