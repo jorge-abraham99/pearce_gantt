@@ -64,6 +64,7 @@ export default function SchedulePlanner({
 }: SchedulePlannerProps) {
   const [view, setView] = useState<PlannerView>("orders");
   const [orderScale, setOrderScale] = useState<TimelineScale>("day");
+  const [workerScale, setWorkerScale] = useState<TimelineScale>("day");
   const [query, setQuery] = useState("");
   const [assignments, setAssignments] = useState(initialAssignments);
   const [collapsedOrderIds, setCollapsedOrderIds] = useState<Set<string>>(
@@ -84,16 +85,16 @@ export default function SchedulePlanner({
     [filteredAssignments, orderScale],
   );
   const workerTimeline = useMemo(
-    () => buildTimeline(filteredAssignments),
-    [filteredAssignments],
+    () => buildTimeline(filteredAssignments, workerScale),
+    [filteredAssignments, workerScale],
   );
   const orderRows = useMemo(
     () => buildOrderRows(filteredAssignments, orderScale),
     [filteredAssignments, orderScale],
   );
   const workerRows = useMemo(
-    () => buildWorkerRows(filteredAssignments),
-    [filteredAssignments],
+    () => buildWorkerRows(filteredAssignments, workerScale),
+    [filteredAssignments, workerScale],
   );
   const stats = useMemo(
     () => buildPlannerStats(filteredAssignments),
@@ -187,7 +188,13 @@ export default function SchedulePlanner({
         workerCount={stats.workerCount}
       />
 
-      <PlannerStatsStrip stats={stats} />
+      <PlannerStatsStrip
+        stats={stats}
+        timelineScale={view === "orders" ? orderScale : workerScale}
+        onTimelineScaleChange={
+          view === "orders" ? setOrderScale : setWorkerScale
+        }
+      />
 
       {refreshError ? (
         <div className="border-b border-red-200 bg-red-50 px-5 py-2 text-sm text-red-900">
@@ -205,9 +212,7 @@ export default function SchedulePlanner({
             rows={orderRows}
             timeline={orderTimeline}
             selection={effectiveSelection}
-            scale={orderScale}
             collapsedOrderIds={collapsedOrderIds}
-            onScaleChange={setOrderScale}
             onToggleOrder={toggleOrder}
             onSelectAssignment={(assignmentId) => {
               setIsScheduleOpen(false);

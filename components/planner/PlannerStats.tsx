@@ -1,8 +1,19 @@
 "use client";
 
-import type { PlannerStats } from "@/lib/plannerViewModel";
+import TimelineScaleToggle from "@/components/planner/TimelineScaleToggle";
+import type { PlannerStats, TimelineScale } from "@/lib/plannerViewModel";
 
-export default function PlannerStatsStrip({ stats }: { stats: PlannerStats }) {
+type PlannerStatsStripProps = {
+  stats: PlannerStats;
+  timelineScale: TimelineScale;
+  onTimelineScaleChange: (scale: TimelineScale) => void;
+};
+
+export default function PlannerStatsStrip({
+  stats,
+  timelineScale,
+  onTimelineScaleChange,
+}: PlannerStatsStripProps) {
   const items: Array<{ label: string; value: string; accent?: boolean }> = [
     { label: "Orders", value: String(stats.orderCount) },
     { label: "Workers", value: String(stats.workerCount) },
@@ -53,6 +64,12 @@ export default function PlannerStatsStrip({ stats }: { stats: PlannerStats }) {
       ))}
       {/* spacer */}
       <div className="flex-1" />
+      <div className="flex items-center px-5 py-2.5">
+        <TimelineScaleToggle
+          scale={timelineScale}
+          onChange={onTimelineScaleChange}
+        />
+      </div>
     </div>
   );
 }

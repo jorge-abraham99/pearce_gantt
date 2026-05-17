@@ -2,7 +2,7 @@ import type { GanttAssignment } from "@/types/planner";
 
 export type PlannerView = "orders" | "workers";
 
-export type TimelineScale = "day" | "week";
+export type TimelineScale = "day" | "week" | "month";
 
 export type TimelineDay = {
   date: Date;
@@ -109,11 +109,24 @@ function addDays(date: Date, days: number): Date {
   return next;
 }
 
+function addMonths(date: Date, months: number): Date {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
 function isSameYMD(left: Date, right: Date): boolean {
   return (
     left.getFullYear() === right.getFullYear() &&
     left.getMonth() === right.getMonth() &&
     left.getDate() === right.getDate()
+  );
+}
+
+function isSameYM(left: Date, right: Date): boolean {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth()
   );
 }
 
@@ -136,6 +149,12 @@ function isoDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function isoMonthKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
 function startOfWeek(date: Date): Date {
   const next = startOfDay(date);
   const day = next.getDay();
@@ -143,6 +162,14 @@ function startOfWeek(date: Date): Date {
   const offset = day === 0 ? 6 : day - 1;
   next.setDate(next.getDate() - offset);
   return next;
+}
+
+function startOfMonth(date: Date): Date {
+  return startOfDay(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+function endOfMonth(date: Date): Date {
+  return endOfDay(new Date(date.getFullYear(), date.getMonth() + 1, 0));
 }
 
 function isoWeekNumber(date: Date): number {
@@ -162,6 +189,10 @@ function formatWeekSubLabel(date: Date): string {
     day: "2-digit",
     month: "short",
   }).format(date);
+}
+
+function formatMonthLabel(date: Date): string {
+  return new Intl.DateTimeFormat("en-GB", { month: "short" }).format(date);
 }
 
 export function filterAssignments(
@@ -220,6 +251,9 @@ export function buildTimeline(
     rangeStart = startOfWeek(rangeStart);
     const lastWeekStart = startOfWeek(rangeEnd);
     rangeEnd = endOfDay(addDays(lastWeekStart, 6));
+  } else if (scale === "month") {
+    rangeStart = startOfMonth(rangeStart);
+    rangeEnd = endOfMonth(rangeEnd);
   }
 
   const totalMs = rangeEnd.getTime() - rangeStart.getTime();
@@ -253,7 +287,7 @@ export function buildTimeline(
         isWeekend: day.isWeekend,
       });
     }
-  } else {
+  } else if (scale === "week") {
     const todayWeekStart = startOfWeek(today);
     let cursor = startOfWeek(rangeStart);
     while (cursor.getTime() < rangeEnd.getTime()) {
@@ -268,6 +302,22 @@ export function buildTimeline(
         isWeekend: false,
       });
       cursor = addDays(cursor, 7);
+    }
+  } else {
+    const todayMonthStart = startOfMonth(today);
+    let cursor = startOfMonth(rangeStart);
+    while (cursor.getTime() < rangeEnd.getTime()) {
+      const monthEnd = endOfMonth(cursor);
+      units.push({
+        start: new Date(cursor),
+        end: monthEnd,
+        iso: isoMonthKey(cursor),
+        label: formatMonthLabel(cursor),
+        subLabel: String(cursor.getFullYear()),
+        isCurrent: isSameYM(cursor, todayMonthStart),
+        isWeekend: false,
+      });
+      cursor = addMonths(cursor, 1);
     }
   }
 
