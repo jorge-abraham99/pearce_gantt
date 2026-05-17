@@ -4,6 +4,11 @@ export type PlannerView = "orders" | "workers";
 
 export type TimelineScale = "day" | "week" | "month";
 
+export type PlannerFilters = {
+  orderNumber: string;
+  task: string;
+};
+
 export type TimelineDay = {
   date: Date;
   iso: string;
@@ -197,22 +202,23 @@ function formatMonthLabel(date: Date): string {
 
 export function filterAssignments(
   assignments: GanttAssignment[],
-  query: string,
+  filters: PlannerFilters,
 ): GanttAssignment[] {
-  const trimmed = query.trim().toLowerCase();
-  if (!trimmed) return assignments;
+  const orderNumber = filters.orderNumber.trim().toLowerCase();
+  const task = filters.task.trim().toLowerCase();
+
+  if (!orderNumber && !task) return assignments;
 
   return assignments.filter((assignment) => {
-    const haystack = [
-      assignment.order_number,
-      assignment.baler_name,
-      assignment.worker_name,
-      assignment.stage,
-      assignment.status,
-    ]
-      .map((part) => String(part ?? "").toLowerCase())
-      .join(" ");
-    return haystack.includes(trimmed);
+    const assignmentOrder = String(assignment.order_number ?? "")
+      .trim()
+      .toLowerCase();
+    const assignmentTask = String(assignment.stage ?? "").trim().toLowerCase();
+
+    return (
+      (!orderNumber || assignmentOrder.includes(orderNumber)) &&
+      (!task || assignmentTask === task)
+    );
   });
 }
 
