@@ -5,6 +5,7 @@ import type { PlannerFilters, PlannerView } from "@/lib/plannerViewModel";
 type PlannerToolbarProps = {
   filters: PlannerFilters;
   onFilterChange: (filters: PlannerFilters) => void;
+  customerOptions: string[];
   taskOptions: string[];
   view: PlannerView;
   onViewChange: (view: PlannerView) => void;
@@ -29,6 +30,7 @@ const VIEW_META: Record<PlannerView, { title: string; subtitle: (o: number, t: n
 export default function PlannerToolbar({
   filters,
   onFilterChange,
+  customerOptions,
   taskOptions,
   view,
   onViewChange,
@@ -78,6 +80,14 @@ export default function PlannerToolbar({
             className="w-full rounded-full border border-[var(--line)] bg-white py-1.5 pl-8 pr-4 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
           />
         </label>
+
+        <FilterSelect
+          label="Filter by customer"
+          value={filters.customer}
+          onChange={(value) => onFilterChange({ ...filters, customer: value })}
+          allLabel="All customers"
+          options={customerOptions}
+        />
 
         <label className="relative flex min-w-[11rem] flex-1 items-center md:max-w-[13rem]">
           <span className="sr-only">Filter by task or operation</span>
@@ -133,6 +143,49 @@ export default function PlannerToolbar({
         </button>
       </div>
     </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  allLabel,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  allLabel: string;
+  options: string[];
+}) {
+  return (
+    <label className="relative flex min-w-[11rem] flex-1 items-center md:max-w-[13rem]">
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        className="w-full appearance-none rounded-full border border-[var(--line)] bg-white py-1.5 pl-4 pr-8 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+      >
+        <option value="">{allLabel}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute right-3 h-3.5 w-3.5 text-[var(--muted)]"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <path d="m5 7 5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </label>
   );
 }
 

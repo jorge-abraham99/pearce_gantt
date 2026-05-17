@@ -5,6 +5,12 @@ export type BalerType = {
   name: string;
 };
 
+export type Customer = {
+  id: Id;
+  name: string;
+  active?: boolean | null;
+};
+
 export type Worker = {
   id: Id;
   worker_id?: Id | null;
@@ -77,6 +83,7 @@ export type GanttAssignment = {
   worker_name: string;
   order_id: Id;
   order_number: string;
+  customer: string | null;
   baler_type_id: Id;
   baler_name: string;
   stage: string;
@@ -90,6 +97,7 @@ export type GanttAssignment = {
 export type ScheduleOrderResponse = {
   orderId: Id;
   orderNumber: string;
+  customer: string;
   balerName: string;
   scheduledStart: string;
   scheduledEnd: string;

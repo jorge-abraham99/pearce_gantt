@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 type ScheduleRequest = {
   balerTypeId: number | string;
+  customer: string;
   startDate: string;
 };
 
@@ -19,8 +20,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { balerTypeId, startDate } = body ?? {};
+  const { balerTypeId, customer, startDate } = body ?? {};
   const numericBalerTypeId = Number(balerTypeId);
+  const trimmedCustomer = typeof customer === "string" ? customer.trim() : "";
 
   if (
     (typeof balerTypeId !== "number" && typeof balerTypeId !== "string") ||
@@ -33,6 +35,13 @@ export async function POST(request: Request) {
   if (typeof startDate !== "string" || Number.isNaN(Date.parse(startDate))) {
     return NextResponse.json(
       { error: "startDate must be an ISO date string" },
+      { status: 400 },
+    );
+  }
+
+  if (trimmedCustomer === "") {
+    return NextResponse.json(
+      { error: "customer must be selected" },
       { status: 400 },
     );
   }
@@ -144,11 +153,12 @@ export async function POST(request: Request) {
     .from("stg_orders")
     .insert({
       order_number: orderNumber,
+      customer: trimmedCustomer,
       baler_type: balerTypeRes.data.name,
       baler_type_id: numericBalerTypeId,
       status: "scheduled",
     })
-    .select("id, order_number")
+    .select("id, order_number, customer")
     .single();
 
   if (orderError || !order) {
@@ -189,6 +199,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     orderId: order.id,
     orderNumber: order.order_number,
+    customer: order.customer,
     balerName: balerTypeRes.data.name,
     scheduledStart: plan.scheduledStart,
     scheduledEnd: plan.scheduledEnd,

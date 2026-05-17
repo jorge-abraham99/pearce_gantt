@@ -40,6 +40,7 @@ export default function SelectionDetails({
     return (
       <DetailFrame title="Assignment" onClear={onClear}>
         <Field label="Order" value={assignment.order_number} />
+        <Field label="Customer" value={assignment.customer ?? "Unassigned"} />
         <Field label="Baler" value={assignment.baler_name} />
         <Field label="Stage" value={assignment.stage} />
         <Field label="Worker" value={assignment.worker_name} />
@@ -59,7 +60,9 @@ export default function SelectionDetails({
       return <Empty onClear={onClear} message="Order not found." />;
     }
     return (
-      <DetailFrame title={`Order ${row.orderNumber}`} onClear={onClear}>
+      <DetailFrame title={formatOrderPrimary(row)} onClear={onClear}>
+        <Field label="Order" value={row.orderNumber} />
+        <Field label="Customer" value={row.customer ?? "Unassigned"} />
         <Field label="Baler" value={row.balerName} />
         <Field label="Start" value={formatDateTime(row.start)} />
         <Field label="End" value={formatDateTime(row.end)} />
@@ -167,6 +170,11 @@ function Field({ label, value }: { label: string; value: string }) {
       <dd className="font-semibold text-[var(--ink)]">{value}</dd>
     </div>
   );
+}
+
+function formatOrderPrimary(row: OrderGanttRow): string {
+  const customer = String(row.customer ?? "").trim();
+  return customer ? `${row.balerName} · ${customer}` : row.balerName;
 }
 
 function StageList({ assignments }: { assignments: PositionedAssignment[] }) {

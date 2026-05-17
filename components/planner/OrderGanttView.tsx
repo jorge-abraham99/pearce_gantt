@@ -160,10 +160,10 @@ export default function OrderGanttView({
           // Expanded  → faint umbrella acts as a span indicator behind the task bars.
           variant={expanded ? "umbrella" : "solid"}
           showLabels={!expanded}
-          labelTop={!expanded ? order.orderNumber : undefined}
+          labelTop={!expanded ? formatOrderPrimary(order) : undefined}
           labelBottom={
             !expanded
-              ? `${order.balerName} · ${formatHours(order.totalHours)}h`
+              ? `${order.orderNumber} · ${formatHours(order.totalHours)}h`
               : undefined
           }
           isSelected={isSelected}
@@ -223,10 +223,11 @@ function renderCell(
           </span>
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-display text-base font-semibold text-[var(--ink)]">
-              {order.orderNumber}
+              {formatOrderPrimary(order)}
             </span>
             <span className="truncate text-xs text-[var(--muted)]">
-              {order.balerName} · {formatHours(order.totalHours)}h{idleText}
+              {order.orderNumber} · {formatHours(order.totalHours)}h
+              {idleText}
             </span>
           </span>
         </div>
@@ -301,6 +302,11 @@ function EmptyState() {
       </p>
     </div>
   );
+}
+
+function formatOrderPrimary(order: OrderGanttRow): string {
+  const customer = String(order.customer ?? "").trim();
+  return customer ? `${order.balerName} · ${customer}` : order.balerName;
 }
 
 function formatHours(value: number): string {
