@@ -21,6 +21,7 @@ import type {
 } from "@/lib/plannerViewModel";
 import type {
   BalerType,
+  Customer,
   GanttAssignment,
   Id,
   ScheduleOrderResponse,
@@ -34,6 +35,7 @@ type Selection =
 
 type SchedulePlannerProps = {
   initialBalerTypes: BalerType[];
+  initialCustomers: Customer[];
   initialAssignments: GanttAssignment[];
 };
 
@@ -41,6 +43,7 @@ const COLLAPSED_ORDER_STORAGE_KEY = "pearce-gantt:collapsed-orders";
 const FILTER_STORAGE_KEY = "pearce-gantt:planner-filters";
 const EMPTY_FILTERS: PlannerFilters = {
   orderNumber: "",
+  customer: "",
   task: "",
 };
 
@@ -79,6 +82,7 @@ function readStoredFilters(): PlannerFilters {
     return {
       orderNumber:
         typeof parsed.orderNumber === "string" ? parsed.orderNumber : "",
+      customer: typeof parsed.customer === "string" ? parsed.customer : "",
       task: typeof parsed.task === "string" ? parsed.task : "",
     };
   } catch {
@@ -94,6 +98,7 @@ function writeStoredFilters(filters: PlannerFilters) {
 
 export default function SchedulePlanner({
   initialBalerTypes,
+  initialCustomers,
   initialAssignments,
 }: SchedulePlannerProps) {
   const [view, setView] = useState<PlannerView>("orders");
@@ -117,6 +122,10 @@ export default function SchedulePlanner({
   const taskOptions = useMemo(
     () => buildTaskOptions(assignments),
     [assignments],
+  );
+  const customerOptions = useMemo(
+    () => buildCustomerOptions(initialCustomers, assignments),
+    [initialCustomers, assignments],
   );
   const orderTimeline = useMemo(
     () => buildTimeline(filteredAssignments, orderScale),
@@ -218,6 +227,7 @@ export default function SchedulePlanner({
       <PlannerToolbar
         filters={filters}
         onFilterChange={setFilters}
+        customerOptions={customerOptions}
         taskOptions={taskOptions}
         view={view}
         onViewChange={setView}
@@ -286,6 +296,7 @@ export default function SchedulePlanner({
       <BottomPanel
         mode={bottomMode}
         balerTypes={initialBalerTypes}
+        customers={initialCustomers}
         selection={effectiveSelection}
         assignments={assignments}
         orderRows={orderRows}
@@ -312,6 +323,35 @@ function buildTaskOptions(assignments: GanttAssignment[]): string[] {
     const key = task.toLowerCase();
     if (!options.has(key)) {
       options.set(key, task);
+    }
+  }
+
+  return Array.from(options.values()).sort((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: "base" }),
+  );
+}
+
+function buildCustomerOptions(
+  customers: Customer[],
+  assignments: GanttAssignment[],
+): string[] {
+  const options = new Map<string, string>();
+
+  for (const customer of customers) {
+    const name = customer.name.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (!options.has(key)) {
+      options.set(key, name);
+    }
+  }
+
+  for (const assignment of assignments) {
+    const name = String(assignment.customer ?? "").trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (!options.has(key)) {
+      options.set(key, name);
     }
   }
 

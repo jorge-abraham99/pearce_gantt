@@ -23,6 +23,7 @@ function makeAssignment(overrides: Partial<GanttAssignment> = {}): GanttAssignme
     worker_name: "Alex",
     order_id: 100,
     order_number: "O-100",
+    customer: "forrest_box",
     baler_type_id: 1,
     baler_name: "HB550",
     stage: "Welding",
@@ -49,16 +50,21 @@ describe("filterAssignments", () => {
 
   it("returns all assignments when filters are empty", () => {
     expect(
-      filterAssignments(assignments, { orderNumber: "", task: "" }),
+      filterAssignments(assignments, { orderNumber: "", customer: "", task: "" }),
     ).toHaveLength(3);
     expect(
-      filterAssignments(assignments, { orderNumber: "   ", task: "   " }),
+      filterAssignments(assignments, {
+        orderNumber: "   ",
+        customer: "   ",
+        task: "   ",
+      }),
     ).toHaveLength(3);
   });
 
   it("does not match worker name", () => {
     const result = filterAssignments(assignments, {
       orderNumber: "alex",
+      customer: "",
       task: "",
     });
     expect(result).toHaveLength(0);
@@ -67,6 +73,7 @@ describe("filterAssignments", () => {
   it("matches by exact task", () => {
     const result = filterAssignments(assignments, {
       orderNumber: "",
+      customer: "",
       task: "Painting",
     });
     expect(result.map((a) => a.assignment_id)).toEqual([2]);
@@ -75,6 +82,7 @@ describe("filterAssignments", () => {
   it("matches by order number", () => {
     const result = filterAssignments(assignments, {
       orderNumber: "O-200",
+      customer: "",
       task: "",
     });
     expect(result.map((a) => a.assignment_id)).toEqual([3]);
@@ -83,6 +91,7 @@ describe("filterAssignments", () => {
   it("applies order number and task together", () => {
     const result = filterAssignments(assignments, {
       orderNumber: "O-100",
+      customer: "",
       task: "Welding",
     });
     expect(result.map((a) => a.assignment_id)).toEqual([1]);
@@ -91,6 +100,7 @@ describe("filterAssignments", () => {
   it("does not match baler name", () => {
     const result = filterAssignments(assignments, {
       orderNumber: "hb880",
+      customer: "",
       task: "",
     });
     expect(result).toHaveLength(0);
@@ -99,9 +109,24 @@ describe("filterAssignments", () => {
   it("matches task case-insensitively", () => {
     const result = filterAssignments(assignments, {
       orderNumber: "",
+      customer: "",
       task: "welding",
     });
     expect(result.map((a) => a.assignment_id)).toEqual([1, 3]);
+  });
+
+  it("matches by customer", () => {
+    const result = filterAssignments(
+      [
+        ...assignments,
+        makeAssignment({
+          assignment_id: 4,
+          customer: "other_customer",
+        }),
+      ],
+      { orderNumber: "", customer: "other_customer", task: "" },
+    );
+    expect(result.map((a) => a.assignment_id)).toEqual([4]);
   });
 });
 

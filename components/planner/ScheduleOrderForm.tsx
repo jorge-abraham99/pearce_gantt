@@ -4,11 +4,13 @@ import { useState, useTransition } from "react";
 
 import type {
   BalerType,
+  Customer,
   ScheduleOrderResponse,
 } from "@/types/planner";
 
 type ScheduleOrderFormProps = {
   balerTypes: BalerType[];
+  customers: Customer[];
   onScheduled: (response: ScheduleOrderResponse) => void;
   onClose: () => void;
 };
@@ -23,12 +25,16 @@ function todayDateValue() {
 
 export default function ScheduleOrderForm({
   balerTypes,
+  customers,
   onScheduled,
   onClose,
 }: ScheduleOrderFormProps) {
   const [startDate, setStartDate] = useState(todayDateValue);
   const [balerTypeId, setBalerTypeId] = useState<string>(
     balerTypes[0] ? String(balerTypes[0].id) : "",
+  );
+  const [customer, setCustomer] = useState<string>(
+    customers[0] ? customers[0].name : "",
   );
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -40,7 +46,7 @@ export default function ScheduleOrderForm({
         const scheduleRes = await fetch("/api/schedule-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ balerTypeId, startDate }),
+          body: JSON.stringify({ balerTypeId, customer, startDate }),
         });
         const json = await scheduleRes.json();
         if (!scheduleRes.ok) {
@@ -53,7 +59,8 @@ export default function ScheduleOrderForm({
     });
   }
 
-  const canSubmit = !isPending && balerTypeId !== "" && startDate !== "";
+  const canSubmit =
+    !isPending && balerTypeId !== "" && customer.trim() !== "" && startDate !== "";
 
   return (
     <div className="flex flex-col gap-4">
@@ -75,7 +82,7 @@ export default function ScheduleOrderForm({
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
         <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
           Start date
           <input
@@ -84,6 +91,24 @@ export default function ScheduleOrderForm({
             onChange={(event) => setStartDate(event.target.value)}
             className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 outline-none transition focus:border-[var(--accent)]"
           />
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
+          Customer
+          <select
+            value={customer}
+            onChange={(event) => setCustomer(event.target.value)}
+            disabled={customers.length === 0}
+            className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 outline-none transition focus:border-[var(--accent)]"
+          >
+            {customers.length === 0 ? (
+              <option value="">No customers available</option>
+            ) : null}
+            {customers.map((item) => (
+              <option key={String(item.id)} value={item.name}>
+                {item.name}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
           Baler type

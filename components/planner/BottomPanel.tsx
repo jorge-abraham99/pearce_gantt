@@ -8,6 +8,7 @@ import type {
 } from "@/lib/plannerViewModel";
 import type {
   BalerType,
+  Customer,
   GanttAssignment,
   Id,
   ScheduleOrderResponse,
@@ -24,6 +25,7 @@ type BottomPanelMode = "schedule" | "details" | "empty";
 type BottomPanelProps = {
   mode: BottomPanelMode;
   balerTypes: BalerType[];
+  customers: Customer[];
   selection: Selection;
   assignments: GanttAssignment[];
   orderRows: OrderGanttRow[];
@@ -38,6 +40,7 @@ type BottomPanelProps = {
 export default function BottomPanel({
   mode,
   balerTypes,
+  customers,
   selection,
   assignments,
   orderRows,
@@ -54,6 +57,7 @@ export default function BottomPanel({
         <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
           <ScheduleOrderForm
             balerTypes={balerTypes}
+            customers={customers}
             onScheduled={onScheduled}
             onClose={onCloseSchedule}
           />
@@ -96,9 +100,9 @@ function LastScheduleCard({ last }: { last: ScheduleOrderResponse }) {
         Just scheduled
       </p>
       <p className="mt-1 font-display text-xl font-semibold">
-        {last.orderNumber}
+        {last.balerName} · {last.customer}
       </p>
-      <p className="text-sm text-white/80">{last.balerName}</p>
+      <p className="text-sm text-white/80">{last.orderNumber}</p>
       <dl className="mt-2 grid grid-cols-2 gap-1.5 text-xs text-white/80">
         <div>
           <dt className="uppercase tracking-[0.14em] opacity-70">Hours</dt>

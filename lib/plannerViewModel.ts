@@ -6,6 +6,7 @@ export type TimelineScale = "day" | "week" | "month";
 
 export type PlannerFilters = {
   orderNumber: string;
+  customer: string;
   task: string;
 };
 
@@ -54,6 +55,7 @@ export type PositionedAssignment = GanttAssignment & {
 export type OrderGanttRow = {
   orderId: GanttAssignment["order_id"];
   orderNumber: string;
+  customer: string | null;
   balerName: string;
   start: Date;
   end: Date;
@@ -205,18 +207,23 @@ export function filterAssignments(
   filters: PlannerFilters,
 ): GanttAssignment[] {
   const orderNumber = filters.orderNumber.trim().toLowerCase();
+  const customer = filters.customer.trim().toLowerCase();
   const task = filters.task.trim().toLowerCase();
 
-  if (!orderNumber && !task) return assignments;
+  if (!orderNumber && !customer && !task) return assignments;
 
   return assignments.filter((assignment) => {
     const assignmentOrder = String(assignment.order_number ?? "")
+      .trim()
+      .toLowerCase();
+    const assignmentCustomer = String(assignment.customer ?? "")
       .trim()
       .toLowerCase();
     const assignmentTask = String(assignment.stage ?? "").trim().toLowerCase();
 
     return (
       (!orderNumber || assignmentOrder.includes(orderNumber)) &&
+      (!customer || assignmentCustomer === customer) &&
       (!task || assignmentTask === task)
     );
   });
@@ -423,6 +430,7 @@ export function buildOrderRows(
     rows.push({
       orderId: head.order_id,
       orderNumber: head.order_number,
+      customer: head.customer,
       balerName: head.baler_name,
       start: startDate,
       end: endDate,

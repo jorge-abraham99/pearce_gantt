@@ -1,20 +1,27 @@
 import SchedulePlanner from "@/components/planner/SchedulePlanner";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import type { BalerType, GanttAssignment } from "@/types/planner";
+import type { BalerType, Customer, GanttAssignment } from "@/types/planner";
 
 export const dynamic = "force-dynamic";
 
 async function loadInitialData(): Promise<{
   balerTypes: BalerType[];
+  customers: Customer[];
   assignments: GanttAssignment[];
   setupError: string | null;
 }> {
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const [balerTypesRes, assignmentsRes] = await Promise.all([
+    const [balerTypesRes, customersRes, assignmentsRes] = await Promise.all([
       supabaseAdmin
         .from("stg_baler_types")
         .select("id, name")
+        .eq("active", true)
+        .is("deleted_at", null)
+        .order("name", { ascending: true }),
+      supabaseAdmin
+        .from("stg_customers")
+        .select("id, name, active")
         .eq("active", true)
         .is("deleted_at", null)
         .order("name", { ascending: true }),
@@ -26,10 +33,12 @@ async function loadInitialData(): Promise<{
     ]);
 
     if (balerTypesRes.error) throw balerTypesRes.error;
+    if (customersRes.error) throw customersRes.error;
     if (assignmentsRes.error) throw assignmentsRes.error;
 
     return {
       balerTypes: balerTypesRes.data ?? [],
+      customers: customersRes.data ?? [],
       assignments: assignmentsRes.data ?? [],
       setupError: null,
     };
@@ -38,6 +47,7 @@ async function loadInitialData(): Promise<{
       error instanceof Error ? error.message : "Unable to load Supabase data";
     return {
       balerTypes: [],
+      customers: [],
       assignments: [],
       setupError: message,
     };
@@ -45,7 +55,8 @@ async function loadInitialData(): Promise<{
 }
 
 export default async function SchedulePage() {
-  const { balerTypes, assignments, setupError } = await loadInitialData();
+  const { balerTypes, customers, assignments, setupError } =
+    await loadInitialData();
 
   return (
     <>
@@ -59,6 +70,7 @@ export default async function SchedulePage() {
       ) : null}
       <SchedulePlanner
         initialBalerTypes={balerTypes}
+        initialCustomers={customers}
         initialAssignments={assignments}
       />
     </>

@@ -139,9 +139,11 @@ function OrderBody({
             <span className="truncate">Order</span>
           </p>
           <p className="mt-0.5 font-display text-base font-semibold leading-tight">
+            {formatOrderPrimary(assignment)}
+          </p>
+          <p className="text-xs text-[var(--muted)]">
             {assignment.order_number}
           </p>
-          <p className="text-xs text-[var(--muted)]">{assignment.baler_name}</p>
         </div>
       </div>
 
@@ -164,6 +166,13 @@ function OrderBody({
       ) : null}
     </>
   );
+}
+
+function formatOrderPrimary(assignment: PositionedAssignment): string {
+  const customer = String(assignment.customer ?? "").trim();
+  return customer
+    ? `${assignment.baler_name} · ${customer}`
+    : assignment.baler_name;
 }
 
 function Row({
