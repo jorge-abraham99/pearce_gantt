@@ -131,6 +131,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to load existing assignments" }, { status: 500 });
   }
 
+  const customerError = await ensureCustomerExists(
+    supabaseAdmin,
+    trimmedCustomer,
+  );
+  if (customerError) {
+    return NextResponse.json({ error: customerError }, { status: 500 });
+  }
+
   let plan;
   try {
     plan = computePlannedAssignments({
@@ -220,4 +228,38 @@ function createOrderNumber() {
   ].join("");
 
   return `O${stamp}`;
+}
+
+async function ensureCustomerExists(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  customerName: string,
+): Promise<string | null> {
+  const { data: existing, error: lookupError } = await supabaseAdmin
+    .from("stg_customers")
+    .select("id")
+    .eq("name", customerName)
+    .is("deleted_at", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error("[POST /api/schedule-order] customer lookup error:", lookupError);
+    return "Failed to check customer";
+  }
+
+  if (existing) return null;
+
+  const { error: insertError } = await supabaseAdmin
+    .from("stg_customers")
+    .insert({
+      name: customerName,
+      active: true,
+    });
+
+  if (insertError) {
+    console.error("[POST /api/schedule-order] customer insert error:", insertError);
+    return "Failed to create customer";
+  }
+
+  return null;
 }
