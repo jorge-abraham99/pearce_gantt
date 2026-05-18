@@ -6,6 +6,7 @@ import GanttBarTooltip from "@/components/planner/GanttBarTooltip";
 import type { PositionedAssignment } from "@/lib/plannerViewModel";
 
 type GanttBarVariant = "solid" | "umbrella";
+type TooltipVariant = "task" | "order";
 
 type OrderSummary = {
   totalHours: number;
@@ -21,6 +22,7 @@ type GanttBarProps = {
   labelBottom?: string;
   showLabels?: boolean;
   variant?: GanttBarVariant;
+  tooltipVariant?: TooltipVariant;
   isSelected: boolean;
   onSelect: () => void;
   rowHeight: number;
@@ -37,6 +39,7 @@ export default function GanttBar({
   labelBottom,
   showLabels = true,
   variant = "solid",
+  tooltipVariant,
   isSelected,
   onSelect,
   rowHeight,
@@ -151,7 +154,7 @@ export default function GanttBar({
       <GanttBarTooltip
         anchorRect={anchorRect}
         assignment={assignment}
-        variant={isUmbrella ? "order" : "task"}
+        variant={tooltipVariant ?? (isUmbrella ? "order" : "task")}
         color={color}
         orderSummary={orderSummary}
       />
