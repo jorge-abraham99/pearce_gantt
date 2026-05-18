@@ -26,10 +26,18 @@ type Selection =
   | { type: "worker"; workerId: Id }
   | null;
 
+type OrderSummary = {
+  totalHours: number;
+  taskCount: number;
+  spanStart: Date;
+  spanEnd: Date;
+};
+
 type WorkerGanttViewProps = {
   rows: WorkerGanttRow[];
   timeline: TimelineModel;
   selection: Selection;
+  orderSummariesById: Map<string, OrderSummary>;
   onSelectAssignment: (assignmentId: Id) => void;
   onSelectWorker: (workerId: Id) => void;
 };
@@ -42,6 +50,7 @@ export default function WorkerGanttView({
   rows,
   timeline,
   selection,
+  orderSummariesById,
   onSelectAssignment,
   onSelectWorker,
 }: WorkerGanttViewProps) {
@@ -95,6 +104,9 @@ export default function WorkerGanttView({
           const isSelected =
             selection?.type === "assignment" &&
             String(selection.assignmentId) === String(assignment.assignment_id);
+          const orderSummary = orderSummariesById.get(
+            String(assignment.order_id),
+          );
           return (
             <GanttBar
               key={String(assignment.assignment_id)}
@@ -103,6 +115,8 @@ export default function WorkerGanttView({
               labelTop={assignment.order_number}
               labelBottom={`${assignment.stage} · ${assignment.scheduled_hours}h`}
               showLabels={false}
+              tooltipVariant="order"
+              orderSummary={orderSummary}
               isSelected={isSelected}
               onSelect={() => onSelectAssignment(assignment.assignment_id)}
               rowHeight={WORKER_ROW_HEIGHT}
