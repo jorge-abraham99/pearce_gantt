@@ -30,6 +30,7 @@ type WorkerGanttViewProps = {
   rows: WorkerGanttRow[];
   timeline: TimelineModel;
   selection: Selection;
+  highlightedOrderId: Id | null;
   onSelectAssignment: (assignmentId: Id) => void;
   onSelectWorker: (workerId: Id) => void;
 };
@@ -42,6 +43,7 @@ export default function WorkerGanttView({
   rows,
   timeline,
   selection,
+  highlightedOrderId,
   onSelectAssignment,
   onSelectWorker,
 }: WorkerGanttViewProps) {
@@ -66,6 +68,13 @@ export default function WorkerGanttView({
         }
         return false;
       }}
+      isRowHighlighted={(index) =>
+        highlightedOrderId !== null &&
+        rows[index].assignments.some(
+          (assignment) =>
+            String(assignment.order_id) === String(highlightedOrderId),
+        )
+      }
       renderRowCell={(index, columnKey) => {
         if (columnKey !== "worker") return null;
         const row = rows[index];
@@ -95,6 +104,9 @@ export default function WorkerGanttView({
           const isSelected =
             selection?.type === "assignment" &&
             String(selection.assignmentId) === String(assignment.assignment_id);
+          const isHighlighted =
+            highlightedOrderId !== null &&
+            String(assignment.order_id) === String(highlightedOrderId);
           return (
             <GanttBar
               key={String(assignment.assignment_id)}
@@ -104,6 +116,7 @@ export default function WorkerGanttView({
               labelBottom={`${assignment.stage} · ${assignment.scheduled_hours}h`}
               showLabels={false}
               isSelected={isSelected}
+              isHighlighted={isHighlighted}
               onSelect={() => onSelectAssignment(assignment.assignment_id)}
               rowHeight={WORKER_ROW_HEIGHT}
             />

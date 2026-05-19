@@ -41,6 +41,7 @@ type SchedulePlannerProps = {
 
 const COLLAPSED_ORDER_STORAGE_KEY = "pearce-gantt:collapsed-orders";
 const FILTER_STORAGE_KEY = "pearce-gantt:planner-filters";
+const JUST_ADDED_HIGHLIGHT_MS = 15000;
 const EMPTY_FILTERS: PlannerFilters = {
   orderNumber: "",
   customer: "",
@@ -104,12 +105,14 @@ export default function SchedulePlanner({
   const [view, setView] = useState<PlannerView>("orders");
   const [orderScale, setOrderScale] = useState<TimelineScale>("day");
   const [workerScale, setWorkerScale] = useState<TimelineScale>("day");
-  const [filters, setFilters] = useState<PlannerFilters>(readStoredFilters);
+  const [filters, setFilters] = useState<PlannerFilters>(EMPTY_FILTERS);
   const [assignments, setAssignments] = useState(initialAssignments);
   const [customers, setCustomers] = useState(initialCustomers);
   const [collapsedOrderIds, setCollapsedOrderIds] = useState<Set<string>>(
-    readStoredCollapsedOrderIds,
+    () => new Set(),
   );
+  const [hasHydratedStorage, setHasHydratedStorage] = useState(false);
+  const [highlightedOrderId, setHighlightedOrderId] = useState<Id | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [lastSchedule, setLastSchedule] =
@@ -150,12 +153,41 @@ export default function SchedulePlanner({
   );
 
   useEffect(() => {
-    writeStoredCollapsedOrderIds(collapsedOrderIds);
-  }, [collapsedOrderIds]);
+    let isActive = true;
+
+    queueMicrotask(() => {
+      if (!isActive) return;
+      setFilters(readStoredFilters());
+      setCollapsedOrderIds(readStoredCollapsedOrderIds());
+      setHasHydratedStorage(true);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
-    writeStoredFilters(filters);
-  }, [filters]);
+    if (hasHydratedStorage) {
+      writeStoredCollapsedOrderIds(collapsedOrderIds);
+    }
+  }, [collapsedOrderIds, hasHydratedStorage]);
+
+  useEffect(() => {
+    if (hasHydratedStorage) {
+      writeStoredFilters(filters);
+    }
+  }, [filters, hasHydratedStorage]);
+
+  useEffect(() => {
+    if (highlightedOrderId === null) return;
+
+    const timer = setTimeout(() => {
+      setHighlightedOrderId(null);
+    }, JUST_ADDED_HIGHLIGHT_MS);
+
+    return () => clearTimeout(timer);
+  }, [highlightedOrderId]);
 
   const effectiveSelection = useMemo<Selection>(() => {
     if (!selection) return null;
@@ -195,7 +227,7 @@ export default function SchedulePlanner({
         const fresh = (json.assignments ?? []) as GanttAssignment[];
         setAssignments(fresh);
         if (response.orderId !== undefined && response.orderId !== null) {
-          setSelection({ type: "order", orderId: response.orderId });
+          setHighlightedOrderId(response.orderId);
         }
       })
       .catch((err) => {
@@ -267,6 +299,7 @@ export default function SchedulePlanner({
             rows={orderRows}
             timeline={orderTimeline}
             selection={effectiveSelection}
+            highlightedOrderId={highlightedOrderId}
             collapsedOrderIds={collapsedOrderIds}
             onToggleOrder={toggleOrder}
             onSelectAssignment={(assignmentId) => {
@@ -283,6 +316,7 @@ export default function SchedulePlanner({
             rows={workerRows}
             timeline={workerTimeline}
             selection={effectiveSelection}
+            highlightedOrderId={highlightedOrderId}
             onSelectAssignment={(assignmentId) => {
               setIsScheduleOpen(false);
               setSelection({ type: "assignment", assignmentId });
