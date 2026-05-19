@@ -127,7 +127,6 @@ export default function WorkerGanttView({
               labelTop={assignment.order_number}
               labelBottom={`${assignment.stage} · ${assignment.scheduled_hours}h`}
               showLabels={false}
-              tooltipVariant="order"
               orderSummary={orderSummary}
               isSelected={isSelected}
               isHighlighted={isHighlighted}

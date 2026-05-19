@@ -118,7 +118,11 @@ function TaskBody({
               summary.taskCount === 1 ? "" : "s"
             }`}
           />
-          <Row label="Total" value={`${formatHours(summary.totalHours)}h`} mono />
+          <Row
+            label="Order total"
+            value={`${formatHours(summary.totalHours)}h`}
+            mono
+          />
           <Row label="Order start" value={formatDateTime(summary.spanStart)} mono />
           <Row label="Order end" value={formatDateTime(summary.spanEnd)} mono />
         </dl>
