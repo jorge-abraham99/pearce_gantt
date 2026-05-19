@@ -21,8 +21,8 @@ type GanttBarTooltipProps = {
 };
 
 const GAP = 8;
-const TOOLTIP_WIDTH = 260;
-const TOOLTIP_MAX_HEIGHT = 220;
+const TOOLTIP_WIDTH = 280;
+const TOOLTIP_MAX_HEIGHT = 280;
 
 export default function GanttBarTooltip({
   anchorRect,
@@ -46,7 +46,11 @@ export default function GanttBarTooltip({
       className="pointer-events-none fixed z-[1000] rounded-xl border border-[var(--line)] bg-white px-3.5 py-3 text-[12px] leading-snug text-[var(--ink)] shadow-[0_12px_32px_-12px_rgba(15,15,15,0.25)]"
     >
       {variant === "task" ? (
-        <TaskBody assignment={assignment} color={color} />
+        <TaskBody
+          assignment={assignment}
+          color={color}
+          summary={orderSummary}
+        />
       ) : (
         <OrderBody
           assignment={assignment}
@@ -78,9 +82,11 @@ function computePosition(anchorRect: DOMRect): { top: number; left: number } {
 function TaskBody({
   assignment,
   color,
+  summary,
 }: {
   assignment: PositionedAssignment;
   color: string;
+  summary?: GanttBarTooltipProps["orderSummary"];
 }) {
   return (
     <>
@@ -92,18 +98,34 @@ function TaskBody({
               className="inline-block h-2 w-2 rounded-full"
               style={{ backgroundColor: color }}
             />
-            <span className="truncate">{assignment.order_number}</span>
-            <span aria-hidden>·</span>
-            <span className="truncate">{assignment.baler_name}</span>
+            <span className="truncate">Order</span>
           </p>
           <p className="mt-0.5 font-display text-base font-semibold leading-tight">
-            {assignment.stage}
+            {formatOrderPrimary(assignment)}
+          </p>
+          <p className="text-xs text-[var(--muted)]">
+            {assignment.order_number}
           </p>
         </div>
         <StatusChip status={assignment.status} />
       </div>
 
+      {summary ? (
+        <dl className="mt-2.5 grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-1 border-b border-[var(--line)] pb-2.5">
+          <Row
+            label="Tasks"
+            value={`${summary.taskCount} stage${
+              summary.taskCount === 1 ? "" : "s"
+            }`}
+          />
+          <Row label="Total" value={`${formatHours(summary.totalHours)}h`} mono />
+          <Row label="Order start" value={formatDateTime(summary.spanStart)} mono />
+          <Row label="Order end" value={formatDateTime(summary.spanEnd)} mono />
+        </dl>
+      ) : null}
+
       <dl className="mt-2.5 grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-1">
+        <Row label="Stage" value={assignment.stage} />
         <Row label="Worker" value={assignment.worker_name} />
         <Row
           label="Start"
