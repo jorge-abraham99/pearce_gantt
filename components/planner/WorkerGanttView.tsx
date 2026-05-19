@@ -37,6 +37,7 @@ type WorkerGanttViewProps = {
   rows: WorkerGanttRow[];
   timeline: TimelineModel;
   selection: Selection;
+  highlightedOrderId: Id | null;
   orderSummariesById: Map<string, OrderSummary>;
   onSelectAssignment: (assignmentId: Id) => void;
   onSelectWorker: (workerId: Id) => void;
@@ -50,6 +51,7 @@ export default function WorkerGanttView({
   rows,
   timeline,
   selection,
+  highlightedOrderId,
   orderSummariesById,
   onSelectAssignment,
   onSelectWorker,
@@ -75,6 +77,13 @@ export default function WorkerGanttView({
         }
         return false;
       }}
+      isRowHighlighted={(index) =>
+        highlightedOrderId !== null &&
+        rows[index].assignments.some(
+          (assignment) =>
+            String(assignment.order_id) === String(highlightedOrderId),
+        )
+      }
       renderRowCell={(index, columnKey) => {
         if (columnKey !== "worker") return null;
         const row = rows[index];
@@ -104,6 +113,9 @@ export default function WorkerGanttView({
           const isSelected =
             selection?.type === "assignment" &&
             String(selection.assignmentId) === String(assignment.assignment_id);
+          const isHighlighted =
+            highlightedOrderId !== null &&
+            String(assignment.order_id) === String(highlightedOrderId);
           const orderSummary = orderSummariesById.get(
             String(assignment.order_id),
           );
@@ -118,6 +130,7 @@ export default function WorkerGanttView({
               tooltipVariant="order"
               orderSummary={orderSummary}
               isSelected={isSelected}
+              isHighlighted={isHighlighted}
               onSelect={() => onSelectAssignment(assignment.assignment_id)}
               rowHeight={WORKER_ROW_HEIGHT}
             />

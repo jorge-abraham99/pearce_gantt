@@ -24,6 +24,7 @@ type GanttBarProps = {
   variant?: GanttBarVariant;
   tooltipVariant?: TooltipVariant;
   isSelected: boolean;
+  isHighlighted?: boolean;
   onSelect: () => void;
   rowHeight: number;
   orderSummary?: OrderSummary;
@@ -41,6 +42,7 @@ export default function GanttBar({
   variant = "solid",
   tooltipVariant,
   isSelected,
+  isHighlighted = false,
   onSelect,
   rowHeight,
   orderSummary,
@@ -133,6 +135,8 @@ export default function GanttBar({
           opacity: isUmbrella ? 0.22 : 1,
           boxShadow: isSelected
             ? "0 0 0 2px var(--paper), 0 0 0 4px var(--accent)"
+            : isHighlighted
+              ? "0 0 0 2px var(--paper), 0 0 0 5px rgba(196, 84, 45, 0.6), 0 12px 28px -12px rgba(196, 84, 45, 0.8)"
             : undefined,
         }}
         className={`absolute flex flex-col justify-center overflow-hidden px-2.5 text-left text-[11px] font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${

@@ -29,6 +29,7 @@ type OrderGanttViewProps = {
   rows: OrderGanttRow[];
   timeline: TimelineModel;
   selection: Selection;
+  highlightedOrderId: Id | null;
   collapsedOrderIds: Set<string>;
   onToggleOrder: (orderId: Id) => void;
   onSelectAssignment: (assignmentId: Id) => void;
@@ -46,6 +47,7 @@ export default function OrderGanttView({
   rows,
   timeline,
   selection,
+  highlightedOrderId,
   collapsedOrderIds,
   onToggleOrder,
   onSelectAssignment,
@@ -82,9 +84,12 @@ export default function OrderGanttView({
 
   const isRowHighlighted = (index: number): boolean => {
     const row = displayRows[index];
-    if (!selection) return false;
     const orderId =
       row.kind === "order" ? row.order.orderId : row.orderId;
+    if (highlightedOrderId && String(highlightedOrderId) === String(orderId)) {
+      return true;
+    }
+    if (!selection) return false;
     if (selection.type === "order") {
       return String(selection.orderId) === String(orderId);
     }
@@ -151,6 +156,9 @@ export default function OrderGanttView({
       const isSelected =
         current?.type === "order" &&
         String(current.orderId) === String(order.orderId);
+      const isHighlighted =
+        highlightedOrderId !== null &&
+        String(highlightedOrderId) === String(order.orderId);
       const expanded = isOrderExpanded(order.orderId);
       return (
         <GanttBar
@@ -167,6 +175,7 @@ export default function OrderGanttView({
               : undefined
           }
           isSelected={isSelected}
+          isHighlighted={isHighlighted}
           onSelect={() => onSelectOrder(order.orderId)}
           rowHeight={ORDER_ROW_HEIGHT}
           orderSummary={{
@@ -183,12 +192,16 @@ export default function OrderGanttView({
     const isSelected =
       current?.type === "assignment" &&
       String(current.assignmentId) === String(assignment.assignment_id);
+    const isHighlighted =
+      highlightedOrderId !== null &&
+      String(highlightedOrderId) === String(orderId);
     return (
       <GanttBar
         assignment={assignment}
         color={colorForKey(orderId)}
         showLabels={false}
         isSelected={isSelected}
+        isHighlighted={isHighlighted}
         onSelect={() => onSelectAssignment(assignment.assignment_id)}
         rowHeight={ORDER_TASK_ROW_HEIGHT}
       />
