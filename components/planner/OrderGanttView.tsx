@@ -25,6 +25,13 @@ type Selection =
   | { type: "worker"; workerId: Id }
   | null;
 
+type OrderSummary = {
+  totalHours: number;
+  taskCount: number;
+  spanStart: Date;
+  spanEnd: Date;
+};
+
 type OrderGanttViewProps = {
   rows: OrderGanttRow[];
   timeline: TimelineModel;
@@ -64,6 +71,17 @@ export default function OrderGanttView({
 
   const isOrderExpanded = (orderId: Id): boolean =>
     !collapsedOrderIds.has(String(orderId));
+
+  const getOrderSummary = (orderId: Id): OrderSummary | undefined => {
+    const order = rows.find((row) => String(row.orderId) === String(orderId));
+    if (!order) return undefined;
+    return {
+      totalHours: order.totalHours,
+      taskCount: order.assignments.length,
+      spanStart: order.start,
+      spanEnd: order.end,
+    };
+  };
 
   const isRowSelected = (index: number): boolean => {
     const row = displayRows[index];
@@ -174,16 +192,12 @@ export default function OrderGanttView({
               ? `${order.orderNumber} · ${formatHours(order.totalHours)}h`
               : undefined
           }
+          tooltipVariant="order"
           isSelected={isSelected}
           isHighlighted={isHighlighted}
           onSelect={() => onSelectOrder(order.orderId)}
           rowHeight={ORDER_ROW_HEIGHT}
-          orderSummary={{
-            totalHours: order.totalHours,
-            taskCount: order.assignments.length,
-            spanStart: order.start,
-            spanEnd: order.end,
-          }}
+          orderSummary={getOrderSummary(order.orderId)}
         />
       );
     }
@@ -204,6 +218,7 @@ export default function OrderGanttView({
         isHighlighted={isHighlighted}
         onSelect={() => onSelectAssignment(assignment.assignment_id)}
         rowHeight={ORDER_TASK_ROW_HEIGHT}
+        orderSummary={getOrderSummary(orderId)}
       />
     );
   }
