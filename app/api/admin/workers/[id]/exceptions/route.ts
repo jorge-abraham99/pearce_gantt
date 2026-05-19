@@ -4,7 +4,14 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_TYPES = ["holiday", "overtime", "custom_shift", "unavailable"];
+const ALLOWED_TYPES = [
+  "holiday",
+  "sickness",
+  "other_absence",
+  "overtime",
+  "custom_shift",
+  "unavailable",
+];
 
 export async function POST(
   request: NextRequest,

@@ -84,7 +84,7 @@ function exceptionCoversDateKey(
  * actual timestamp when their workday starts on that date.
  *
  * Priority:
- *  1. holiday / unavailable exception → 0 hours
+ *  1. absence exceptions → 0 hours
  *  2. worker_default_schedule for that day_of_week
  *  3. fallback to hours_per_day at WORKDAY_START_HOUR if no schedule row exists
  *  4. overtime / custom_shift exceptions add extra hours on top of the base
@@ -104,7 +104,10 @@ export function getWorkerDayCapacity(
   if (
     onDate.some(
       (e) =>
-        e.exception_type === "holiday" || e.exception_type === "unavailable",
+        e.exception_type === "holiday" ||
+        e.exception_type === "sickness" ||
+        e.exception_type === "other_absence" ||
+        e.exception_type === "unavailable",
     )
   ) {
     return { availableHours: 0, dayStart: fallbackStart };
