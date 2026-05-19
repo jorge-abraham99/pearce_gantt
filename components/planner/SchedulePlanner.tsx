@@ -336,6 +336,7 @@ export default function SchedulePlanner({
             rows={workerRows}
             timeline={workerTimeline}
             selection={effectiveSelection}
+            highlightedOrderId={highlightedOrderId}
             orderSummariesById={orderSummariesById}
             onSelectAssignment={(assignmentId) => {
               setIsScheduleOpen(false);
