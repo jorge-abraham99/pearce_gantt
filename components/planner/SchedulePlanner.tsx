@@ -147,6 +147,26 @@ export default function SchedulePlanner({
     () => buildWorkerRows(filteredAssignments, workerScale),
     [filteredAssignments, workerScale],
   );
+  const orderSummariesById = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        totalHours: number;
+        taskCount: number;
+        spanStart: Date;
+        spanEnd: Date;
+      }
+    >();
+    for (const row of orderRows) {
+      map.set(String(row.orderId), {
+        totalHours: row.totalHours,
+        taskCount: row.assignments.length,
+        spanStart: row.start,
+        spanEnd: row.end,
+      });
+    }
+    return map;
+  }, [orderRows]);
   const stats = useMemo(
     () => buildPlannerStats(filteredAssignments),
     [filteredAssignments],
@@ -316,7 +336,7 @@ export default function SchedulePlanner({
             rows={workerRows}
             timeline={workerTimeline}
             selection={effectiveSelection}
-            highlightedOrderId={highlightedOrderId}
+            orderSummariesById={orderSummariesById}
             onSelectAssignment={(assignmentId) => {
               setIsScheduleOpen(false);
               setSelection({ type: "assignment", assignmentId });
@@ -350,6 +370,13 @@ export default function SchedulePlanner({
   );
 }
 
+const CANONICAL_STAGE_ORDER: Record<string, number> = {
+  pressing: 1,
+  welding: 2,
+  assembling: 3,
+  spraying: 4,
+};
+
 function buildTaskOptions(assignments: GanttAssignment[]): string[] {
   const options = new Map<string, string>();
 
@@ -362,9 +389,14 @@ function buildTaskOptions(assignments: GanttAssignment[]): string[] {
     }
   }
 
-  return Array.from(options.values()).sort((left, right) =>
-    left.localeCompare(right, undefined, { sensitivity: "base" }),
-  );
+  return Array.from(options.values()).sort((left, right) => {
+    const leftRank =
+      CANONICAL_STAGE_ORDER[left.toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
+    const rightRank =
+      CANONICAL_STAGE_ORDER[right.toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return left.localeCompare(right, undefined, { sensitivity: "base" });
+  });
 }
 
 function buildCustomerOptions(
