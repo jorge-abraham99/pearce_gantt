@@ -68,14 +68,6 @@ export default function SelectionDetails({
         <Field label="End" value={formatDateTime(row.end)} />
         <Field label="Total hours" value={`${formatHours(row.totalHours)}h`} />
         <Field label="Stages" value={String(row.assignments.length)} />
-        <Field
-          label="Idle gap"
-          value={
-            row.idleGapHours > 0
-              ? `${formatHours(row.idleGapHours)}h`
-              : "None"
-          }
-        />
         <StageList assignments={row.assignments} />
       </DetailFrame>
     );

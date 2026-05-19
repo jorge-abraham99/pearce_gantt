@@ -232,10 +232,6 @@ function renderCell(
   if (row.kind === "order") {
     const order = row.order;
     if (columnKey === "label") {
-      const idleText =
-        order.idleGapHours >= 1
-          ? ` · ${formatHours(order.idleGapHours)}h idle`
-          : "";
       const expanded = isOrderExpanded(order.orderId);
       return (
         <div className="flex min-w-0 items-center gap-2">
@@ -255,7 +251,6 @@ function renderCell(
             </span>
             <span className="truncate text-xs text-[var(--muted)]">
               {order.orderNumber} · {formatHours(order.totalHours)}h
-              {idleText}
             </span>
           </span>
         </div>

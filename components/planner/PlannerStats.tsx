@@ -33,14 +33,6 @@ export default function PlannerStatsStrip({
       value: `${stats.longestOrder.durationDays}d`,
     });
   }
-  if (stats.largestIdleGap && stats.largestIdleGap.idleGapHours >= 1) {
-    items.push({
-      label: "Idle gap",
-      value: `${formatHours(stats.largestIdleGap.idleGapHours)}h`,
-      accent: true,
-    });
-  }
-
   return (
     <div className="flex items-stretch border-b border-[var(--line)] bg-[var(--panel-2)]">
       {items.map((item, index) => (
