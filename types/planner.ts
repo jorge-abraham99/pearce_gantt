@@ -150,7 +150,13 @@ export type WorkerDefaultSchedule = {
   end_time: string | null;   // "17:00"
 };
 
-export type ExceptionType = "holiday" | "overtime" | "custom_shift" | "unavailable";
+export type ExceptionType =
+  | "holiday"
+  | "sickness"
+  | "other_absence"
+  | "overtime"
+  | "custom_shift"
+  | "unavailable";
 
 export type WorkerAvailabilityException = {
   id: Id;

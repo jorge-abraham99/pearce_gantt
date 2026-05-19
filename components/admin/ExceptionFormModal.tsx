@@ -11,6 +11,8 @@ import type {
 
 const EXCEPTION_TYPES: { value: ExceptionType; label: string }[] = [
   { value: "holiday", label: "Holiday" },
+  { value: "sickness", label: "Sickness" },
+  { value: "other_absence", label: "Other absence" },
   { value: "overtime", label: "Overtime" },
   { value: "custom_shift", label: "Custom shift" },
   { value: "unavailable", label: "Unavailable" },

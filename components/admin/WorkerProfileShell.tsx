@@ -32,6 +32,8 @@ const DAY_NAMES: Record<number, string> = {
 
 const EXCEPTION_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   holiday: { bg: "bg-amber-50 border-amber-200", text: "text-amber-700", label: "Holiday" },
+  sickness: { bg: "bg-rose-50 border-rose-200", text: "text-rose-700", label: "Sickness" },
+  other_absence: { bg: "bg-stone-50 border-stone-200", text: "text-stone-700", label: "Other absence" },
   overtime: { bg: "bg-green-50 border-green-200", text: "text-green-700", label: "Overtime" },
   custom_shift: { bg: "bg-blue-50 border-blue-200", text: "text-blue-700", label: "Custom shift" },
   unavailable: { bg: "bg-red-50 border-red-200", text: "text-red-700", label: "Unavailable" },

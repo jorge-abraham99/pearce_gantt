@@ -175,8 +175,10 @@ describe("computePlannedAssignments", () => {
     expect(output.assignments[0].scheduled_hours).toBe(4);
   });
 
-  it("marks a worker unavailable on holiday exception dates", () => {
-    // Worker 2 has a holiday on 2026-05-11 (Mon) — should not be scheduled that day
+  it.each(["holiday", "sickness", "other_absence", "unavailable"] as const)(
+    "marks a worker unavailable on %s exception dates",
+    (exceptionType) => {
+    // Worker 2 has an absence on 2026-05-11 (Mon) — should not be scheduled that day
     const output = computePlannedAssignments({
       ...baseInput,
       startDate: "2026-05-11",
@@ -187,11 +189,11 @@ describe("computePlannedAssignments", () => {
         {
           id: 1,
           worker_id: 2,
-          exception_type: "holiday",
+          exception_type: exceptionType,
           start_at: "2026-05-11T00:00:00",
           end_at: "2026-05-11T23:59:59",
           all_day: true,
-          title: "Bank holiday",
+          title: "Absence",
           notes: null,
         },
       ],
@@ -200,7 +202,8 @@ describe("computePlannedAssignments", () => {
     // Must not start on Monday (holiday); must start on Tuesday
     const startDate = new Date(output.scheduledStart);
     expect(startDate.getDay()).toBe(2); // Tuesday
-  });
+    },
+  );
 
   it("uses default schedule hours_per_day fallback when no schedule row exists", () => {
     // Worker with no defaultSchedules entry — should fall back to hours_per_day at 08:00

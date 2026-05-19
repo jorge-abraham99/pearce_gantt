@@ -15,6 +15,8 @@ const DAYS_SHOWN = 28;
 
 const EXCEPTION_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   holiday: { bg: "bg-amber-100 border-amber-300", text: "text-amber-800", label: "Holiday" },
+  sickness: { bg: "bg-rose-100 border-rose-300", text: "text-rose-800", label: "Sick" },
+  other_absence: { bg: "bg-stone-100 border-stone-300", text: "text-stone-800", label: "Other" },
   overtime: { bg: "bg-green-100 border-green-300", text: "text-green-800", label: "Overtime" },
   custom_shift: { bg: "bg-blue-100 border-blue-300", text: "text-blue-800", label: "Custom" },
   unavailable: { bg: "bg-red-100 border-red-300", text: "text-red-800", label: "Unavailable" },
