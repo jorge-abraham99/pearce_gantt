@@ -25,6 +25,7 @@ import type {
   GanttAssignment,
   Id,
   ScheduleOrderResponse,
+  WorkerSkill,
 } from "@/types/planner";
 
 type Selection =
@@ -37,6 +38,7 @@ type SchedulePlannerProps = {
   initialBalerTypes: BalerType[];
   initialCustomers: Customer[];
   initialAssignments: GanttAssignment[];
+  initialWorkerSkills: WorkerSkill[];
 };
 
 const COLLAPSED_ORDER_STORAGE_KEY = "pearce-gantt:collapsed-orders";
@@ -101,12 +103,14 @@ export default function SchedulePlanner({
   initialBalerTypes,
   initialCustomers,
   initialAssignments,
+  initialWorkerSkills,
 }: SchedulePlannerProps) {
   const [view, setView] = useState<PlannerView>("orders");
   const [orderScale, setOrderScale] = useState<TimelineScale>("day");
   const [workerScale, setWorkerScale] = useState<TimelineScale>("day");
   const [filters, setFilters] = useState<PlannerFilters>(EMPTY_FILTERS);
   const [assignments, setAssignments] = useState(initialAssignments);
+  const [workerSkills, setWorkerSkills] = useState(initialWorkerSkills);
   const [customers, setCustomers] = useState(initialCustomers);
   const [collapsedOrderIds, setCollapsedOrderIds] = useState<Set<string>>(
     () => new Set(),
@@ -144,8 +148,8 @@ export default function SchedulePlanner({
     [filteredAssignments, orderScale],
   );
   const workerRows = useMemo(
-    () => buildWorkerRows(filteredAssignments, workerScale),
-    [filteredAssignments, workerScale],
+    () => buildWorkerRows(filteredAssignments, workerScale, workerSkills),
+    [filteredAssignments, workerScale, workerSkills],
   );
   const orderSummariesById = useMemo(() => {
     const map = new Map<
@@ -245,7 +249,9 @@ export default function SchedulePlanner({
           throw new Error(json.error ?? "Failed to refresh gantt");
         }
         const fresh = (json.assignments ?? []) as GanttAssignment[];
+        const freshWorkerSkills = (json.workerSkills ?? []) as WorkerSkill[];
         setAssignments(fresh);
+        setWorkerSkills(freshWorkerSkills);
         if (response.orderId !== undefined && response.orderId !== null) {
           setHighlightedOrderId(response.orderId);
         }
