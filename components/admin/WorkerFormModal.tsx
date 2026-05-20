@@ -161,7 +161,7 @@ export default function WorkerFormModal({
             fetch(`/api/admin/workers/${id}/schedule`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ schedule }),
+              body: JSON.stringify({ schedule, hours_per_day: hours }),
             }),
           ]);
 
