@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { calculateHoursPerWeek } from "@/lib/workerHours";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +63,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, hours_per_day, hours_per_week, skills, defaultSchedule } = body as {
+  const { name, hours_per_day, skills, defaultSchedule } = body as {
     name?: string;
     hours_per_day?: number;
-    hours_per_week?: number | null;
     skills?: string[];
     defaultSchedule?: Array<{
       day_of_week: number;
@@ -86,13 +86,14 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = getSupabaseAdmin();
+  const hoursPerWeek = calculateHoursPerWeek(defaultSchedule, hours_per_day);
 
   const { data: worker, error: workerErr } = await supabase
     .from("stg_workers")
     .insert({
       name: name.trim(),
       hours_per_day,
-      hours_per_week: hours_per_week ?? null,
+      hours_per_week: hoursPerWeek,
     })
     .select()
     .single();

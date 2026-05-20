@@ -63,10 +63,9 @@ export async function PUT(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, hours_per_day, hours_per_week } = body as {
+  const { name, hours_per_day } = body as {
     name?: string;
     hours_per_day?: number;
-    hours_per_week?: number | null;
   };
 
   const updates: Record<string, unknown> = {
@@ -74,7 +73,6 @@ export async function PUT(
   };
   if (name !== undefined) updates.name = name.trim();
   if (hours_per_day !== undefined) updates.hours_per_day = hours_per_day;
-  if (hours_per_week !== undefined) updates.hours_per_week = hours_per_week;
 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
