@@ -41,10 +41,8 @@ type BusyMap = Map<string, TimeWindow[]>;
 
 // ── Skill normalisation ───────────────────────────────────────────────────────
 
-// Common aliases so that e.g. "press" stored in stg_worker_skills matches
-// "pressing" used as a stage name in stg_baler_requirements.
+// Common aliases so that worker skill labels and stage names still align.
 const SKILL_ALIASES: Record<string, string> = {
-  press: "pressing",
   weld: "welding",
   spray: "spraying",
   assemble: "assembling",

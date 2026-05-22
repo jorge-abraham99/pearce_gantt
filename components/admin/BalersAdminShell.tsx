@@ -8,7 +8,6 @@ import type { BalerAdminRow } from "@/types/planner";
 type ModalState = null | { mode: "create" } | { mode: "edit"; baler: BalerAdminRow };
 
 const STAGE_COLS = [
-  { key: "pressingHours", label: "Pressing" },
   { key: "weldingHours", label: "Welding" },
   { key: "assemblyHours", label: "Assembly" },
   { key: "sprayingHours", label: "Spraying" },

@@ -5,7 +5,6 @@ import { useMemo, useState, useTransition } from "react";
 import type { BalerAdminRow } from "@/types/planner";
 
 const STAGE_FIELDS = [
-  { key: "pressingHours", label: "Pressing", stageName: "pressing" },
   { key: "weldingHours", label: "Welding", stageName: "welding" },
   { key: "assemblyHours", label: "Assembly", stageName: "assembling" },
   { key: "sprayingHours", label: "Spraying", stageName: "spraying" },
@@ -30,7 +29,6 @@ export default function BalerFormModal({
 }: BalerFormModalProps) {
   const [name, setName] = useState(initialData?.name ?? "");
   const [hours, setHours] = useState<StageValues>({
-    pressingHours: String(initialData?.pressingHours ?? ""),
     weldingHours: String(initialData?.weldingHours ?? ""),
     assemblyHours: String(initialData?.assemblyHours ?? ""),
     sprayingHours: String(initialData?.sprayingHours ?? ""),
@@ -70,7 +68,6 @@ export default function BalerFormModal({
 
     const payload = {
       name: name.trim(),
-      pressingHours: Number(hours.pressingHours),
       weldingHours: Number(hours.weldingHours),
       assemblyHours: Number(hours.assemblyHours),
       sprayingHours: Number(hours.sprayingHours),
