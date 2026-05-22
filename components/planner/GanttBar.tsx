@@ -28,6 +28,7 @@ type GanttBarProps = {
   onSelect: () => void;
   rowHeight: number;
   orderSummary?: OrderSummary;
+  showOrderSummaryInTooltip?: boolean;
 };
 
 const OPEN_DELAY_MS = 80;
@@ -46,6 +47,7 @@ export default function GanttBar({
   onSelect,
   rowHeight,
   orderSummary,
+  showOrderSummaryInTooltip = true,
 }: GanttBarProps) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,7 +162,7 @@ export default function GanttBar({
         assignment={assignment}
         variant={tooltipVariant ?? (isUmbrella ? "order" : "task")}
         color={color}
-        orderSummary={orderSummary}
+        orderSummary={showOrderSummaryInTooltip ? orderSummary : undefined}
       />
     </>
   );
