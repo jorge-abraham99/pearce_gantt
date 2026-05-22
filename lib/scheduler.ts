@@ -2,6 +2,7 @@ import {
   WORKDAY_START_HOUR,
   addHours,
   getWorkDate,
+  maxDate,
   parseDateOnlyAsLocal,
 } from "@/lib/dates";
 import type {
@@ -25,9 +26,9 @@ type EnrichedWorker = {
   exceptions: WorkerAvailabilityException[];
 };
 
-type DayCapacity = {
-  availableHours: number;
-  dayStart: Date; // actual workday start for this worker on this date
+type TimeWindow = {
+  start: Date;
+  end: Date;
 };
 
 type CandidateSchedule = {
@@ -36,7 +37,7 @@ type CandidateSchedule = {
   finishTime: Date;
 };
 
-type BusyMap = Map<string, number>;
+type BusyMap = Map<string, TimeWindow[]>;
 
 // ── Skill normalisation ───────────────────────────────────────────────────────
 
@@ -69,93 +70,216 @@ function timeToHours(timeStr: string): number {
   return (h ?? 0) + (m ?? 0) / 60;
 }
 
-function exceptionCoversDateKey(
-  ex: WorkerAvailabilityException,
-  dateKey: string,
-): boolean {
+function exceptionCoversDateKey(ex: WorkerAvailabilityException, dateKey: string): boolean {
   const midnight = parseDateOnlyAsLocal(dateKey);
-  const dayEnd = new Date(midnight);
-  dayEnd.setHours(23, 59, 59, 999);
-  return new Date(ex.start_at) <= dayEnd && new Date(ex.end_at) >= midnight;
+  const nextMidnight = addHours(midnight, 24);
+  return new Date(ex.start_at) < nextMidnight && new Date(ex.end_at) > midnight;
 }
 
 /**
- * Returns how many hours this worker can work on a given date, plus the
- * actual timestamp when their workday starts on that date.
+ * Returns the exact availability windows for a worker on a given date.
  *
  * Priority:
- *  1. absence exceptions → 0 hours
- *  2. worker_default_schedule for that day_of_week
- *  3. fallback to hours_per_day at WORKDAY_START_HOUR if no schedule row exists
- *  4. overtime / custom_shift exceptions add extra hours on top of the base
+ *  1. worker_default_schedule for that day_of_week
+ *  2. fallback to hours_per_day at WORKDAY_START_HOUR if no schedule row exists
+ *  3. overtime / custom_shift append exact extra windows
+ *  4. absence / unavailable exceptions subtract or block windows
  */
-export function getWorkerDayCapacity(
+export function getWorkerAvailabilityWindows(
   worker: EnrichedWorker,
   dateKey: string,
-): DayCapacity {
+): TimeWindow[] {
   const midnight = parseDateOnlyAsLocal(dateKey);
-  const fallbackStart = addHours(midnight, WORKDAY_START_HOUR);
+  const nextMidnight = addHours(midnight, 24);
   const dayOfWeek = isoWeekday(midnight);
 
   const onDate = worker.exceptions.filter((e) =>
     exceptionCoversDateKey(e, dateKey),
   );
 
-  if (
-    onDate.some(
-      (e) =>
-        e.exception_type === "holiday" ||
-        e.exception_type === "sickness" ||
-        e.exception_type === "other_absence" ||
-        e.exception_type === "unavailable",
-    )
-  ) {
-    return { availableHours: 0, dayStart: fallbackStart };
-  }
-
   const daySchedule = worker.defaultSchedule.find(
     (s) => s.day_of_week === dayOfWeek,
   );
 
-  let baseHours: number;
-  let startHour: number;
+  const baseWindows: TimeWindow[] = [];
 
   if (!daySchedule) {
-    // No schedule data at all — fall back to hours_per_day at default start
-    startHour = WORKDAY_START_HOUR;
-    baseHours = worker.hours_per_day;
-  } else if (!daySchedule.is_working) {
-    return { availableHours: 0, dayStart: fallbackStart };
-  } else {
-    startHour = daySchedule.start_time
+    const fallbackStart = addHours(midnight, WORKDAY_START_HOUR);
+    const fallbackEnd = addHours(fallbackStart, worker.hours_per_day);
+    if (fallbackEnd.getTime() > fallbackStart.getTime()) {
+      baseWindows.push({ start: fallbackStart, end: fallbackEnd });
+    }
+  } else if (daySchedule.is_working) {
+    const startHour = daySchedule.start_time
       ? timeToHours(daySchedule.start_time)
       : WORKDAY_START_HOUR;
     const endHour = daySchedule.end_time
       ? timeToHours(daySchedule.end_time)
       : startHour + worker.hours_per_day;
-    baseHours = endHour - startHour;
+
+    if (endHour > startHour) {
+      baseWindows.push({
+        start: addHours(midnight, startHour),
+        end: addHours(midnight, endHour),
+      });
+    }
   }
 
-  const extraHours = onDate
+  const additiveWindows = onDate
     .filter(
       (e) =>
         e.exception_type === "overtime" || e.exception_type === "custom_shift",
     )
-    .reduce(
-      (acc, e) =>
-        acc +
-        Math.max(
-          0,
-          (new Date(e.end_at).getTime() - new Date(e.start_at).getTime()) /
-            3_600_000,
-        ),
-      0,
-    );
+    .map((e) => clampRangeToDate(e.start_at, e.end_at, midnight, nextMidnight))
+    .filter(isTimeWindow);
 
-  return {
-    availableHours: Math.max(0, baseHours) + extraHours,
-    dayStart: addHours(midnight, startHour),
-  };
+  const blockingExceptions = onDate.filter(
+    (e) =>
+      e.exception_type === "holiday" ||
+      e.exception_type === "sickness" ||
+      e.exception_type === "other_absence" ||
+      e.exception_type === "unavailable",
+  );
+
+  if (blockingExceptions.some((e) => e.all_day)) {
+    return [];
+  }
+
+  const blockedWindows = blockingExceptions
+    .map((e) => clampRangeToDate(e.start_at, e.end_at, midnight, nextMidnight))
+    .filter(isTimeWindow);
+
+  const mergedAvailability = mergeTimeWindows([
+    ...baseWindows,
+    ...additiveWindows,
+  ]);
+
+  if (blockedWindows.length === 0) {
+    return mergedAvailability;
+  }
+
+  return subtractTimeWindows(
+    mergedAvailability,
+    mergeTimeWindows(blockedWindows),
+  );
+}
+
+function clampRangeToDate(
+  startAt: string,
+  endAt: string,
+  dayStart: Date,
+  dayEnd: Date,
+): TimeWindow | null {
+  const start = maxDate(new Date(startAt), dayStart);
+  const end = minDate(new Date(endAt), dayEnd);
+
+  if (end.getTime() <= start.getTime()) {
+    return null;
+  }
+
+  return { start, end };
+}
+
+function mergeTimeWindows(windows: TimeWindow[]): TimeWindow[] {
+  if (windows.length === 0) return [];
+
+  const sorted = [...windows].sort(
+    (a, b) => a.start.getTime() - b.start.getTime(),
+  );
+  const merged: TimeWindow[] = [{ start: new Date(sorted[0].start), end: new Date(sorted[0].end) }];
+
+  for (const window of sorted.slice(1)) {
+    const current = merged[merged.length - 1];
+    if (window.start.getTime() <= current.end.getTime()) {
+      if (window.end.getTime() > current.end.getTime()) {
+        current.end = new Date(window.end);
+      }
+      continue;
+    }
+    merged.push({ start: new Date(window.start), end: new Date(window.end) });
+  }
+
+  return merged;
+}
+
+function subtractTimeWindows(
+  sourceWindows: TimeWindow[],
+  blockedWindows: TimeWindow[],
+): TimeWindow[] {
+  if (sourceWindows.length === 0) return [];
+  if (blockedWindows.length === 0) return sourceWindows;
+
+  const blocked = mergeTimeWindows(blockedWindows);
+  const result: TimeWindow[] = [];
+
+  for (const source of sourceWindows) {
+    let cursor = new Date(source.start);
+
+    for (const block of blocked) {
+      if (block.end.getTime() <= cursor.getTime()) continue;
+      if (block.start.getTime() >= source.end.getTime()) break;
+
+      if (block.start.getTime() > cursor.getTime()) {
+        result.push({
+          start: new Date(cursor),
+          end: minDate(block.start, source.end),
+        });
+      }
+
+      if (block.end.getTime() >= source.end.getTime()) {
+        cursor = new Date(source.end);
+        break;
+      }
+
+      cursor = maxDate(cursor, block.end);
+    }
+
+    if (cursor.getTime() < source.end.getTime()) {
+      result.push({ start: new Date(cursor), end: new Date(source.end) });
+    }
+  }
+
+  return result.filter((window) => window.end.getTime() > window.start.getTime());
+}
+
+function minDate(left: Date, right: Date): Date {
+  return left.getTime() <= right.getTime() ? new Date(left) : new Date(right);
+}
+
+function isTimeWindow(value: TimeWindow | null): value is TimeWindow {
+  return value !== null;
+}
+
+function diffHours(start: Date, end: Date): number {
+  return (end.getTime() - start.getTime()) / 3_600_000;
+}
+
+function addBusyWindow(busyByDay: BusyMap, dateKey: string, window: TimeWindow) {
+  const current = busyByDay.get(dateKey) ?? [];
+  busyByDay.set(
+    dateKey,
+    mergeTimeWindows([...current, { start: window.start, end: window.end }]),
+  );
+}
+
+function splitRangeByDay(start: Date, end: Date): Array<{ dateKey: string; window: TimeWindow }> {
+  const segments: Array<{ dateKey: string; window: TimeWindow }> = [];
+  if (end.getTime() <= start.getTime()) return segments;
+
+  let segmentStart = new Date(start);
+
+  while (segmentStart.getTime() < end.getTime()) {
+    const dayStart = parseDateOnlyAsLocal(getWorkDate(segmentStart));
+    const nextMidnight = addHours(dayStart, 24);
+    const segmentEnd = minDate(end, nextMidnight);
+    segments.push({
+      dateKey: getWorkDate(segmentStart),
+      window: { start: new Date(segmentStart), end: segmentEnd },
+    });
+    segmentStart = segmentEnd;
+  }
+
+  return segments;
 }
 
 // ── Core scheduler ────────────────────────────────────────────────────────────
@@ -270,43 +394,65 @@ function simulateWorkerSchedule(input: {
 
   while (remainingHours > EPSILON) {
     const dateKey = getWorkDate(cursor);
-    const { availableHours: capacity, dayStart } = getWorkerDayCapacity(
-      input.worker,
-      dateKey,
+    const availabilityWindows = subtractTimeWindows(
+      getWorkerAvailabilityWindows(
+        input.worker,
+        dateKey,
+      ),
+      busyByDay.get(dateKey) ?? [],
     );
 
-    if (capacity <= 0) {
+    if (availabilityWindows.length === 0) {
       cursor = advanceOneDay(cursor);
       continue;
     }
 
-    const bookedHours = busyByDay.get(dateKey) ?? 0;
-    const cursorHours = Math.max(0, hoursSince(dayStart, cursor));
-    const startOffsetHours = Math.max(bookedHours, cursorHours);
-    const availableHours = Math.max(0, capacity - startOffsetHours);
+    let scheduledThisDay = false;
 
-    if (availableHours <= EPSILON) {
+    for (const window of availabilityWindows) {
+      const scheduleStart = maxDate(window.start, cursor);
+      if (scheduleStart.getTime() >= window.end.getTime()) {
+        continue;
+      }
+
+      const availableHours = diffHours(scheduleStart, window.end);
+      if (availableHours <= EPSILON) {
+        continue;
+      }
+
+      const hoursToSchedule = Math.min(remainingHours, availableHours);
+      const scheduleEnd = addHours(scheduleStart, hoursToSchedule);
+
+      assignments.push({
+        worker_id: input.worker.id, // stg_workers.id
+        stage: input.stage,
+        stage_order: input.stageOrder,
+        schedule_start: scheduleStart.toISOString(),
+        schedule_end: scheduleEnd.toISOString(),
+        scheduled_hours: roundHours(hoursToSchedule),
+        status: "scheduled",
+      });
+
+      addBusyWindow(busyByDay, dateKey, { start: scheduleStart, end: scheduleEnd });
+      remainingHours = roundHours(remainingHours - hoursToSchedule);
+      cursor = scheduleEnd;
+      scheduledThisDay = true;
+
+      if (remainingHours <= EPSILON) {
+        break;
+      }
+    }
+
+    if (remainingHours <= EPSILON) {
+      break;
+    }
+
+    if (!scheduledThisDay) {
       cursor = advanceOneDay(cursor);
       continue;
     }
 
-    const hoursToSchedule = Math.min(remainingHours, availableHours);
-    const scheduleStart = addHours(dayStart, startOffsetHours);
-    const scheduleEnd = addHours(scheduleStart, hoursToSchedule);
-
-    assignments.push({
-      worker_id: input.worker.id, // stg_workers.id
-      stage: input.stage,
-      stage_order: input.stageOrder,
-      schedule_start: scheduleStart.toISOString(),
-      schedule_end: scheduleEnd.toISOString(),
-      scheduled_hours: roundHours(hoursToSchedule),
-      status: "scheduled",
-    });
-
-    busyByDay.set(dateKey, bookedHours + hoursToSchedule);
-    remainingHours = roundHours(remainingHours - hoursToSchedule);
-    cursor = scheduleEnd;
+    cursor = advanceOneDay(cursor);
   }
 
   const lastAssignment = assignments[assignments.length - 1];
@@ -323,12 +469,19 @@ function simulateWorkerSchedule(input: {
 
 function buildBusyMap(workerId: Id, assignments: ExistingAssignment[]): BusyMap {
   const busyByDay: BusyMap = new Map();
+
   for (const a of assignments) {
     if (String(a.worker_id) !== String(workerId)) continue;
-    const dateKey = getWorkDate(a.schedule_start);
-    const current = busyByDay.get(dateKey) ?? 0;
-    busyByDay.set(dateKey, current + Number(a.scheduled_hours || 0));
+
+    const start = new Date(a.schedule_start);
+    const end = new Date(a.schedule_end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue;
+
+    for (const segment of splitRangeByDay(start, end)) {
+      addBusyWindow(busyByDay, segment.dateKey, segment.window);
+    }
   }
+
   return busyByDay;
 }
 
@@ -346,10 +499,6 @@ function advanceOneDay(date: Date): Date {
   next.setHours(0, 0, 0, 0);
   next.setDate(next.getDate() + 1);
   return next;
-}
-
-function hoursSince(start: Date, end: Date): number {
-  return (end.getTime() - start.getTime()) / (60 * 60 * 1000);
 }
 
 function roundHours(value: number): number {

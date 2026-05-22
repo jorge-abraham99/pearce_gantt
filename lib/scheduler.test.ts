@@ -4,6 +4,7 @@ import { computePlannedAssignments } from "@/lib/scheduler";
 import type {
   BalerRequirement,
   StgWorker,
+  WorkerAvailabilityException,
   WorkerDefaultSchedule,
   WorkerSkill,
 } from "@/types/planner";
@@ -62,6 +63,25 @@ const baseInput = {
   availabilityExceptions: [] as import("@/types/planner").WorkerAvailabilityException[],
   existingAssignments: [] as import("@/types/planner").ExistingAssignment[],
 };
+
+function makeException(
+  workerId: number,
+  exceptionType: WorkerAvailabilityException["exception_type"],
+  startAt: string,
+  endAt: string,
+  allDay = false,
+): WorkerAvailabilityException {
+  return {
+    id: `${workerId}-${exceptionType}-${startAt}`,
+    worker_id: workerId,
+    exception_type: exceptionType,
+    start_at: startAt,
+    end_at: endAt,
+    all_day: allDay,
+    title: null,
+    notes: null,
+  };
+}
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -219,5 +239,116 @@ describe("computePlannedAssignments", () => {
     // Worker 2 (hours_per_day=10) can do 5h in one go
     expect(output.assignments).toHaveLength(1);
     expect(output.assignments[0].scheduled_hours).toBe(5);
+  });
+
+  it("uses overtime as an exact extra window after the normal shift", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-05-11",
+      requirements: [
+        { id: 9, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 2, stage_sequence: 1 },
+      ],
+      availabilityExceptions: [
+        makeException(1, "overtime", "2026-05-11T16:00:00", "2026-05-11T18:00:00"),
+      ],
+      existingAssignments: [
+        {
+          id: 101,
+          worker_id: 1,
+          schedule_start: new Date(2026, 4, 11, 8).toISOString(),
+          schedule_end: new Date(2026, 4, 11, 16).toISOString(),
+          scheduled_hours: 8,
+          status: "scheduled",
+        },
+      ],
+    });
+
+    expect(output.assignments).toHaveLength(1);
+    expect(new Date(output.assignments[0].schedule_start).getHours()).toBe(16);
+    expect(new Date(output.assignments[0].schedule_end).getHours()).toBe(18);
+    expect(output.assignments[0].scheduled_hours).toBe(2);
+  });
+
+  it("does not invent availability before a later overtime window starts", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-05-11",
+      requirements: [
+        { id: 10, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 2, stage_sequence: 1 },
+      ],
+      availabilityExceptions: [
+        makeException(1, "overtime", "2026-05-11T17:00:00", "2026-05-11T19:00:00"),
+      ],
+      existingAssignments: [
+        {
+          id: 102,
+          worker_id: 1,
+          schedule_start: new Date(2026, 4, 11, 8).toISOString(),
+          schedule_end: new Date(2026, 4, 11, 16).toISOString(),
+          scheduled_hours: 8,
+          status: "scheduled",
+        },
+      ],
+    });
+
+    expect(output.assignments).toHaveLength(1);
+    expect(new Date(output.assignments[0].schedule_start).getHours()).toBe(17);
+    expect(new Date(output.assignments[0].schedule_end).getHours()).toBe(19);
+  });
+
+  it("merges overlapping overtime windows instead of double-counting them", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-05-11",
+      requirements: [
+        { id: 11, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 3, stage_sequence: 1 },
+      ],
+      availabilityExceptions: [
+        makeException(1, "overtime", "2026-05-11T16:00:00", "2026-05-11T18:00:00"),
+        makeException(1, "overtime", "2026-05-11T17:00:00", "2026-05-11T19:00:00"),
+      ],
+      existingAssignments: [
+        {
+          id: 103,
+          worker_id: 1,
+          schedule_start: new Date(2026, 4, 11, 8).toISOString(),
+          schedule_end: new Date(2026, 4, 11, 16).toISOString(),
+          scheduled_hours: 8,
+          status: "scheduled",
+        },
+      ],
+    });
+
+    expect(output.assignments).toHaveLength(1);
+    expect(output.assignments[0].scheduled_hours).toBe(3);
+    expect(new Date(output.assignments[0].schedule_start).getHours()).toBe(16);
+    expect(new Date(output.assignments[0].schedule_end).getHours()).toBe(19);
+  });
+
+  it("keeps custom shift behavior as an extra exact window", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-05-11",
+      requirements: [
+        { id: 12, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 2, stage_sequence: 1 },
+      ],
+      availabilityExceptions: [
+        makeException(1, "custom_shift", "2026-05-11T18:00:00", "2026-05-11T20:00:00"),
+      ],
+      existingAssignments: [
+        {
+          id: 104,
+          worker_id: 1,
+          schedule_start: new Date(2026, 4, 11, 8).toISOString(),
+          schedule_end: new Date(2026, 4, 11, 16).toISOString(),
+          scheduled_hours: 8,
+          status: "scheduled",
+        },
+      ],
+    });
+
+    expect(output.assignments).toHaveLength(1);
+    expect(new Date(output.assignments[0].schedule_start).getHours()).toBe(18);
+    expect(new Date(output.assignments[0].schedule_end).getHours()).toBe(20);
   });
 });

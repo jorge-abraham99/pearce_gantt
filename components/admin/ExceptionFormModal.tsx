@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import type {
   ExceptionType,
@@ -65,16 +65,36 @@ export default function ExceptionFormModal({
       ? `${initialDate}T17:00`
       : `${todayStr()}T17:00`;
 
+  const defaultTimedDate = initialData
+    ? initialData.start_at.substring(0, 10)
+    : (initialDate ?? todayStr());
+  const defaultStartTime = initialData
+    ? initialData.start_at.substring(11, 16)
+    : "16:00";
+  const defaultEndTime = initialData
+    ? initialData.end_at.substring(11, 16)
+    : "18:00";
+
   const [allDay, setAllDay] = useState(defaultAllDay);
   const [exceptionType, setExceptionType] = useState<ExceptionType>(defaultType);
   const [startDate, setStartDate] = useState(defaultStartDate);
   const [endDate, setEndDate] = useState(defaultEndDate);
   const [startDatetime, setStartDatetime] = useState(defaultStartDatetime);
   const [endDatetime, setEndDatetime] = useState(defaultEndDatetime);
+  const [timedDate, setTimedDate] = useState(defaultTimedDate);
+  const [startTime, setStartTime] = useState(defaultStartTime);
+  const [endTime, setEndTime] = useState(defaultEndTime);
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [notes, setNotes] = useState(initialData?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const isOvertime = exceptionType === "overtime";
+
+  useEffect(() => {
+    if (isOvertime && allDay) {
+      setAllDay(false);
+    }
+  }, [allDay, isOvertime]);
 
   function handleSubmit() {
     setError(null);
@@ -87,7 +107,14 @@ export default function ExceptionFormModal({
     let start_at: string;
     let end_at: string;
 
-    if (allDay) {
+    if (isOvertime) {
+      if (!timedDate || !startTime || !endTime) {
+        setError("Date, start time, and end time are required for overtime.");
+        return;
+      }
+      start_at = `${timedDate}T${startTime}:00`;
+      end_at = `${timedDate}T${endTime}:00`;
+    } else if (allDay) {
       if (!startDate || !endDate) {
         setError("Start and end dates are required.");
         return;
@@ -114,7 +141,7 @@ export default function ExceptionFormModal({
           exception_type: exceptionType,
           start_at,
           end_at,
-          all_day: allDay,
+          all_day: isOvertime ? false : allDay,
           title: title.trim() || null,
           notes: notes.trim() || null,
         };
@@ -195,7 +222,13 @@ export default function ExceptionFormModal({
               Type
               <select
                 value={exceptionType}
-                onChange={(e) => setExceptionType(e.target.value as ExceptionType)}
+                onChange={(e) => {
+                  const nextType = e.target.value as ExceptionType;
+                  setExceptionType(nextType);
+                  if (nextType === "overtime") {
+                    setAllDay(false);
+                  }
+                }}
                 className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 font-normal outline-none transition focus:border-[var(--accent)]"
               >
                 {EXCEPTION_TYPES.map((t) => (
@@ -207,18 +240,54 @@ export default function ExceptionFormModal({
             </label>
 
             {/* All day toggle */}
-            <label className="flex items-center gap-3 text-sm font-semibold text-[var(--ink)]">
-              <input
-                type="checkbox"
-                checked={allDay}
-                onChange={(e) => setAllDay(e.target.checked)}
-                className="h-4 w-4 accent-[var(--accent)]"
-              />
-              All day
-            </label>
+            {!isOvertime ? (
+              <label className="flex items-center gap-3 text-sm font-semibold text-[var(--ink)]">
+                <input
+                  type="checkbox"
+                  checked={allDay}
+                  onChange={(e) => setAllDay(e.target.checked)}
+                  className="h-4 w-4 accent-[var(--accent)]"
+                />
+                All day
+              </label>
+            ) : (
+              <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+                Overtime adds a precise availability window and cannot be saved as all day.
+              </div>
+            )}
 
             {/* Date / datetime inputs */}
-            {allDay ? (
+            {isOvertime ? (
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
+                  Date
+                  <input
+                    type="date"
+                    value={timedDate}
+                    onChange={(e) => setTimedDate(e.target.value)}
+                    className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 font-normal outline-none focus:border-[var(--accent)]"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
+                  Start time
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 font-normal outline-none focus:border-[var(--accent)]"
+                  />
+                </label>
+                <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
+                  End time
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 font-normal outline-none focus:border-[var(--accent)]"
+                  />
+                </label>
+              </div>
+            ) : allDay ? (
               <div className="grid grid-cols-2 gap-3">
                 <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
                   Start date
