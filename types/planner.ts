@@ -112,7 +112,6 @@ export type BalerAdminRow = {
   id: Id;
   name: string;
   active: boolean;
-  pressingHours: number;
   weldingHours: number;
   assemblyHours: number; // DB stage_name = "assembling"
   sprayingHours: number;

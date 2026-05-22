@@ -372,10 +372,9 @@ export default function SchedulePlanner({
 }
 
 const CANONICAL_STAGE_ORDER: Record<string, number> = {
-  pressing: 1,
-  welding: 2,
-  assembling: 3,
-  spraying: 4,
+  welding: 1,
+  assembling: 2,
+  spraying: 3,
 };
 
 function buildTaskOptions(assignments: GanttAssignment[]): string[] {

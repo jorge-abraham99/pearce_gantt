@@ -37,10 +37,9 @@ const workers: StgWorker[] = [
 ];
 
 const workerSkills: WorkerSkill[] = [
-  { id: 1, worker_id: 1, skill: "pressing", name: "pressing" },
-  { id: 2, worker_id: 1, skill: "assembling", name: "assembling" },
-  { id: 3, worker_id: 2, skill: "welding", name: "welding" },
-  { id: 4, worker_id: 3, skill: "spraying", name: "spraying" },
+  { id: 1, worker_id: 1, skill: "assembling", name: "assembling" },
+  { id: 2, worker_id: 2, skill: "welding", name: "welding" },
+  { id: 3, worker_id: 3, skill: "spraying", name: "spraying" },
 ];
 
 const defaultSchedules: WorkerDefaultSchedule[] = [
@@ -50,8 +49,8 @@ const defaultSchedules: WorkerDefaultSchedule[] = [
 ];
 
 const requirements: BalerRequirement[] = [
-  { id: 1, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 10, stage_sequence: 1 },
-  { id: 2, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 12, stage_sequence: 2 },
+  { id: 1, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 12, stage_sequence: 1 },
+  { id: 2, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 10, stage_sequence: 2 },
   { id: 3, baler_type_id: 1, stage_name: "spraying", stage_hour_requirements: 6, stage_sequence: 3 },
 ];
 
@@ -95,14 +94,14 @@ describe("computePlannedAssignments", () => {
 
     expect(output.totalScheduledHours).toBe(28);
     expect(output.assignments.map((a) => a.stage)).toEqual([
-      "pressing",
-      "pressing",
       "welding",
       "welding",
+      "assembling",
+      "assembling",
       "spraying",
       "spraying",
     ]);
-    // welding must not start before pressing finishes
+    // assembling must not start before welding finishes
     expect(new Date(output.assignments[2].schedule_start).getTime()).toBeGreaterThanOrEqual(
       new Date(output.assignments[1].schedule_end).getTime(),
     );
@@ -123,7 +122,7 @@ describe("computePlannedAssignments", () => {
     const output = computePlannedAssignments({
       ...baseInput,
       startDate: "2026-05-11",
-      requirements: [requirements[1]], // welding only
+      requirements: [requirements[0]], // welding only
       existingAssignments: [
         {
           id: 99,
@@ -136,7 +135,7 @@ describe("computePlannedAssignments", () => {
       ],
     });
 
-    // Mon: 10 - 6 booked = 4 remaining; Tue: full 8h
+    // Mon: 10 - 6 booked = 4 remaining; Tue: remaining 8h
     expect(output.assignments[0].scheduled_hours).toBe(4);
     expect(output.assignments[1].scheduled_hours).toBe(8);
   });
@@ -178,20 +177,19 @@ describe("computePlannedAssignments", () => {
     ).toThrow("No worker available for stage: testing");
   });
 
-  it("normalises skill aliases — 'press' matches stage 'pressing'", () => {
+  it("normalises skill aliases — 'weld' matches stage 'welding'", () => {
     const output = computePlannedAssignments({
       ...baseInput,
       startDate: "2026-05-11",
       requirements: [
-        { id: 6, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 4, stage_sequence: 1 },
+        { id: 6, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 4, stage_sequence: 1 },
       ],
       workerSkills: [
-        // skill stored as alias "press" should still match stage "pressing"
-        { id: 10, worker_id: 1, skill: "press", name: "press" },
+        { id: 10, worker_id: 2, skill: "weld", name: "weld" },
       ],
     });
 
-    expect(output.assignments[0].worker_id).toBe(1);
+    expect(output.assignments[0].worker_id).toBe(2);
     expect(output.assignments[0].scheduled_hours).toBe(4);
   });
 
@@ -246,7 +244,7 @@ describe("computePlannedAssignments", () => {
       ...baseInput,
       startDate: "2026-05-11",
       requirements: [
-        { id: 9, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 2, stage_sequence: 1 },
+        { id: 9, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 2, stage_sequence: 1 },
       ],
       availabilityExceptions: [
         makeException(1, "overtime", "2026-05-11T16:00:00", "2026-05-11T18:00:00"),
@@ -274,7 +272,7 @@ describe("computePlannedAssignments", () => {
       ...baseInput,
       startDate: "2026-05-11",
       requirements: [
-        { id: 10, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 2, stage_sequence: 1 },
+        { id: 10, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 2, stage_sequence: 1 },
       ],
       availabilityExceptions: [
         makeException(1, "overtime", "2026-05-11T17:00:00", "2026-05-11T19:00:00"),
@@ -301,7 +299,7 @@ describe("computePlannedAssignments", () => {
       ...baseInput,
       startDate: "2026-05-11",
       requirements: [
-        { id: 11, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 3, stage_sequence: 1 },
+        { id: 11, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 3, stage_sequence: 1 },
       ],
       availabilityExceptions: [
         makeException(1, "overtime", "2026-05-11T16:00:00", "2026-05-11T18:00:00"),
@@ -330,7 +328,7 @@ describe("computePlannedAssignments", () => {
       ...baseInput,
       startDate: "2026-05-11",
       requirements: [
-        { id: 12, baler_type_id: 1, stage_name: "pressing", stage_hour_requirements: 2, stage_sequence: 1 },
+        { id: 12, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 2, stage_sequence: 1 },
       ],
       availabilityExceptions: [
         makeException(1, "custom_shift", "2026-05-11T18:00:00", "2026-05-11T20:00:00"),
