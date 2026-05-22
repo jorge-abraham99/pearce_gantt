@@ -32,7 +32,6 @@ async function loadBalers(): Promise<{ balers: BalerAdminRow[]; error: string | 
       const get = (s: string) =>
         mine.find((r) => r.stage_name === s)?.stage_hour_requirements ?? 0;
 
-      const pressing = get("pressing");
       const welding = get("welding");
       const assembly = get("assembling");
       const spraying = get("spraying");
@@ -41,11 +40,10 @@ async function loadBalers(): Promise<{ balers: BalerAdminRow[]; error: string | 
         id: t.id,
         name: t.name,
         active: t.active,
-        pressingHours: pressing,
         weldingHours: welding,
         assemblyHours: assembly,
         sprayingHours: spraying,
-        totalHours: pressing + welding + assembly + spraying,
+        totalHours: welding + assembly + spraying,
       };
     });
 

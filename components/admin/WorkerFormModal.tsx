@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import type { WorkerDefaultSchedule, WorkerListItem } from "@/types/planner";
 
-const KNOWN_SKILLS = ["pressing", "welding", "spraying", "assembling"];
+const KNOWN_SKILLS = ["welding", "spraying", "assembling"];
 
 const DAY_NAMES: Record<number, string> = {
   1: "Monday",
