@@ -13,6 +13,35 @@ const ALLOWED_TYPES = [
   "unavailable",
 ];
 
+function validateExceptionPayload(input: {
+  exception_type: string;
+  start_at: string;
+  end_at: string;
+  all_day: boolean;
+}): string | null {
+  const start = new Date(input.start_at);
+  const end = new Date(input.end_at);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "start_at and end_at must be valid ISO datetime strings";
+  }
+
+  if (end.getTime() <= start.getTime()) {
+    return "end_at must be after start_at";
+  }
+
+  if (input.exception_type === "overtime") {
+    if (input.all_day) {
+      return "overtime cannot be saved as all_day";
+    }
+    if (input.start_at.slice(0, 10) !== input.end_at.slice(0, 10)) {
+      return "overtime must start and end on the same date";
+    }
+  }
+
+  return null;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -43,6 +72,16 @@ export async function POST(
   if (!start_at || !end_at) {
     return NextResponse.json({ error: "start_at and end_at are required" }, { status: 400 });
   }
+  const normalizedAllDay = exception_type === "overtime" ? false : (all_day ?? false);
+  const validationError = validateExceptionPayload({
+    exception_type,
+    start_at,
+    end_at,
+    all_day: normalizedAllDay,
+  });
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
@@ -52,7 +91,7 @@ export async function POST(
       exception_type,
       start_at,
       end_at,
-      all_day: all_day ?? false,
+      all_day: normalizedAllDay,
       title: title ?? null,
       notes: notes ?? null,
     })
