@@ -160,6 +160,19 @@ describe("buildTimeline", () => {
     expect(first.getTime()).toBeLessThan(new Date("2026-05-11T00:00:00").getTime());
     expect(last.getTime()).toBeGreaterThan(new Date("2026-05-13T00:00:00").getTime());
   });
+
+  it("adds bank holiday metadata to timeline days", () => {
+    const timeline = buildTimeline([
+      makeAssignment({
+        schedule_start: "2026-12-24T08:00:00.000Z",
+        schedule_end: "2026-12-29T16:00:00.000Z",
+      }),
+    ]);
+
+    const christmas = timeline.days.find((day) => day.iso === "2026-12-25");
+    expect(christmas?.isBankHoliday).toBe(true);
+    expect(christmas?.bankHolidayTitle).toBe("Christmas Day");
+  });
 });
 
 describe("positionAssignment", () => {
@@ -434,6 +447,25 @@ describe("buildTimeline (week)", () => {
     }
     expect(timeline.start.getDay()).toBe(1);
   });
+
+  it("adds bank holiday metadata to week units", () => {
+    const timeline = buildTimeline(
+      [
+        makeAssignment({
+          schedule_start: "2026-04-02T08:00:00.000Z",
+          schedule_end: "2026-04-07T16:00:00.000Z",
+        }),
+      ],
+      "week",
+    );
+
+    const goodFridayWeek = timeline.units.find((unit) => unit.iso === "2026-03-30");
+    const easterMondayWeek = timeline.units.find((unit) => unit.iso === "2026-04-06");
+    expect(goodFridayWeek?.isBankHoliday).toBe(true);
+    expect(goodFridayWeek?.bankHolidayTitles).toEqual(["Good Friday"]);
+    expect(easterMondayWeek?.isBankHoliday).toBe(true);
+    expect(easterMondayWeek?.bankHolidayTitles).toEqual(["Easter Monday"]);
+  });
 });
 
 describe("buildTimeline (month)", () => {
@@ -474,6 +506,25 @@ describe("buildTimeline (month)", () => {
     expect(positioned.leftPct).toBeGreaterThanOrEqual(0);
     expect(positioned.widthPct).toBeGreaterThan(0);
     expect(positioned.leftPct + positioned.widthPct).toBeLessThanOrEqual(100.001);
+  });
+
+  it("adds bank holiday metadata to month units", () => {
+    const timeline = buildTimeline(
+      [
+        makeAssignment({
+          schedule_start: "2026-12-24T08:00:00.000Z",
+          schedule_end: "2026-12-29T16:00:00.000Z",
+        }),
+      ],
+      "month",
+    );
+
+    const december = timeline.units.find((unit) => unit.iso === "2026-12");
+    expect(december?.isBankHoliday).toBe(true);
+    expect(december?.bankHolidayTitles).toEqual([
+      "Christmas Day",
+      "Boxing Day",
+    ]);
   });
 });
 
