@@ -127,6 +127,22 @@ describe("computePlannedAssignments", () => {
     expect(new Date(output.scheduledStart).getDay()).toBe(1);
   });
 
+  it("serializes planned timestamps as local wall-clock values", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-05-11",
+      requirements: [
+        { id: 16, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 4, stage_sequence: 1 },
+      ],
+    });
+
+    expect(output.assignments).toHaveLength(1);
+    expect(output.assignments[0].schedule_start).toBe("2026-05-11T08:00:00");
+    expect(output.assignments[0].schedule_end).toBe("2026-05-11T12:00:00");
+    expect(output.scheduledStart).toBe("2026-05-11T08:00:00");
+    expect(output.scheduledEnd).toBe("2026-05-11T12:00:00");
+  });
+
   it("skips Easter bank holidays at schedule start", () => {
     const output = computePlannedAssignments({
       ...baseInput,
