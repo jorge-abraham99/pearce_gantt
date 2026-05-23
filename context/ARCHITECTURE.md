@@ -29,6 +29,7 @@ pearce_gantt/
 ├── lib/
 │   ├── scheduler.ts                   # Pure scheduling algorithm
 │   ├── scheduler.test.ts              # Vitest tests
+│   ├── bankHolidays.ts                # Generated England/Wales bank holiday calendar
 │   ├── dates.ts                       # Workday/date helpers
 │   ├── supabaseAdmin.ts               # Server-only Supabase client (service role)
 │   └── supabaseClient.ts              # Browser-safe Supabase client (anon key)
@@ -211,7 +212,7 @@ Pure function — no I/O, no side effects, fully unit-tested.
 5. The next stage for this order cannot start before the previous stage ends
 
 **Key assumptions:**
-- Workday starts at **08:00**, no weekends
+- Workday starts at **08:00**, no weekends, no England/Wales bank holidays
 - Worker daily capacity is shared across all skills
 - Workers can only do one thing at a time
 - Stages from different orders may overlap
@@ -318,7 +319,7 @@ Added in May 2026. Separate from the scheduler — manages the source-of-truth w
 |---|---|---|
 | `components/admin/WorkersAdminShell` | Client | Shell: worker list + calendar tabs, manages modals |
 | `components/admin/WorkerFormModal` | Client | Create/edit worker — name, hours, skills, weekly schedule |
-| `components/admin/AvailabilityCalendar` | Client | 28-day scrollable grid: workers × dates, color-coded exceptions |
+| `components/admin/AvailabilityCalendar` | Client | 28-day scrollable grid: workers × dates, bank holidays, color-coded exceptions |
 | `components/admin/ExceptionFormModal` | Client | Add/edit availability exception |
 | `components/admin/WorkerProfileShell` | Client | Worker detail page with schedule + exception CRUD |
 

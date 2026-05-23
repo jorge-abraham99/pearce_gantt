@@ -5,6 +5,7 @@ import {
   maxDate,
   parseDateOnlyAsLocal,
 } from "@/lib/dates";
+import { isBankHolidayDateKey } from "@/lib/bankHolidays";
 import type {
   ExistingAssignment,
   Id,
@@ -88,6 +89,10 @@ export function getWorkerAvailabilityWindows(
   dateKey: string,
 ): TimeWindow[] {
   const midnight = parseDateOnlyAsLocal(dateKey);
+  if (isBankHolidayDateKey(dateKey)) {
+    return [];
+  }
+
   const nextMidnight = addHours(midnight, 24);
   const dayOfWeek = isoWeekday(midnight);
 

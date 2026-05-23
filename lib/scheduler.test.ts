@@ -82,6 +82,15 @@ function makeException(
   };
 }
 
+function localDateKey(value: string): string {
+  const date = new Date(value);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("computePlannedAssignments", () => {
@@ -116,6 +125,52 @@ describe("computePlannedAssignments", () => {
 
     // Scheduled start must fall on Monday (getDay() === 1)
     expect(new Date(output.scheduledStart).getDay()).toBe(1);
+  });
+
+  it("skips Easter bank holidays at schedule start", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-04-03", // Good Friday
+      requirements: [
+        { id: 13, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 4, stage_sequence: 1 },
+      ],
+    });
+
+    const startDate = new Date(output.scheduledStart);
+    expect(startDate.getFullYear()).toBe(2026);
+    expect(startDate.getMonth()).toBe(3);
+    expect(startDate.getDate()).toBe(7); // Tuesday after Easter Monday
+  });
+
+  it("skips Christmas bank holidays at schedule start", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-12-25", // Christmas Day
+      requirements: [
+        { id: 14, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 4, stage_sequence: 1 },
+      ],
+    });
+
+    const startDate = new Date(output.scheduledStart);
+    expect(startDate.getFullYear()).toBe(2026);
+    expect(startDate.getMonth()).toBe(11);
+    expect(startDate.getDate()).toBe(29); // Tuesday after Boxing Day substitute
+  });
+
+  it("does not create assignment segments on bank holidays", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-12-24",
+      requirements: [
+        { id: 15, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 20, stage_sequence: 1 },
+      ],
+    });
+
+    const scheduledDates = output.assignments.map((assignment) =>
+      localDateKey(assignment.schedule_start),
+    );
+    expect(scheduledDates).not.toContain("2026-12-25");
+    expect(scheduledDates).not.toContain("2026-12-28");
   });
 
   it("respects existing worker capacity", () => {

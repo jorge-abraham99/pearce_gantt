@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { formatBankHolidayTitle } from "@/lib/bankHolidays";
 import type { TimelineModel } from "@/lib/plannerViewModel";
 
 export const DAY_WIDTH = 112;
@@ -101,24 +102,36 @@ export default function GanttViewport({
             ))}
           </div>
           <div className="relative" style={{ width: timelineWidth }}>
-            {timeline.units.map((unit, index) => (
-              <div
-                key={unit.iso}
-                className="absolute top-0 flex h-full flex-col justify-end border-r border-[var(--line)] px-2 pb-1.5"
-                style={{ left: index * unitWidth, width: unitWidth }}
-              >
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
-                  {unit.subLabel}
-                </div>
+            {timeline.units.map((unit, index) => {
+              const tooltipText =
+                timeline.scale === "day" && unit.isBankHoliday
+                  ? unit.bankHolidayTitles.map(formatBankHolidayTitle).join(", ")
+                  : "";
+
+              return (
                 <div
-                  className={`text-sm font-semibold ${
-                    unit.isCurrent ? "text-[var(--accent)]" : "text-[var(--ink)]"
-                  }`}
+                  key={unit.iso}
+                  className="group absolute top-0 flex h-full flex-col justify-end border-r border-[var(--line)] px-2 pb-1.5"
+                  style={{ left: index * unitWidth, width: unitWidth }}
                 >
-                  {unit.label}
+                  <div className="truncate text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    {unit.subLabel}
+                  </div>
+                  <div
+                    className={`text-sm font-semibold ${
+                      unit.isCurrent ? "text-[var(--accent)]" : "text-[var(--ink)]"
+                    }`}
+                  >
+                    {unit.label}
+                  </div>
+                  {tooltipText ? (
+                    <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--ink)] px-2 py-1 text-[10px] font-normal normal-case leading-tight text-white shadow-lg group-hover:block">
+                      {tooltipText}
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {headerExtra ? (
               <div className="pointer-events-none absolute right-2 top-1.5 z-50 flex items-start">
                 <div className="pointer-events-auto">{headerExtra}</div>
@@ -212,6 +225,11 @@ function buildRowBackground(
       if (unit.isWeekend) {
         layers.push(
           `linear-gradient(var(--weekend), var(--weekend)) ${left}px 0/${unitWidth}px 100% no-repeat`,
+        );
+      }
+      if (unit.isBankHoliday) {
+        layers.push(
+          `linear-gradient(var(--bank-holiday), var(--bank-holiday)) ${left}px 0/${unitWidth}px 100% no-repeat`,
         );
       }
       if (unit.isCurrent) {

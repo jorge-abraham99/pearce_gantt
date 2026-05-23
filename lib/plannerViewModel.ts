@@ -1,3 +1,4 @@
+import { getBankHolidayByDateKey } from "@/lib/bankHolidays";
 import type { GanttAssignment } from "@/types/planner";
 
 export type PlannerView = "orders" | "workers";
@@ -16,6 +17,8 @@ export type TimelineDay = {
   label: string;
   isWeekend: boolean;
   isToday: boolean;
+  isBankHoliday: boolean;
+  bankHolidayTitle: string | null;
 };
 
 export type TimelineUnit = {
@@ -26,6 +29,8 @@ export type TimelineUnit = {
   subLabel: string;
   isCurrent: boolean;
   isWeekend: boolean;
+  isBankHoliday: boolean;
+  bankHolidayTitles: string[];
 };
 
 export type TimelineModel = {
@@ -276,12 +281,16 @@ export function buildTimeline(
   for (let index = 0; index < totalDays; index += 1) {
     const date = addDays(rangeStart, index);
     const day = date.getDay();
+    const iso = isoDateKey(date);
+    const bankHoliday = getBankHolidayByDateKey(iso);
     days.push({
       date,
-      iso: isoDateKey(date),
+      iso,
       label: formatDayLabel(date),
       isWeekend: day === 0 || day === 6,
       isToday: isSameYMD(date, today),
+      isBankHoliday: bankHoliday !== null,
+      bankHolidayTitle: bankHoliday?.title ?? null,
     });
   }
 
@@ -298,6 +307,8 @@ export function buildTimeline(
         ),
         isCurrent: day.isToday,
         isWeekend: day.isWeekend,
+        isBankHoliday: day.isBankHoliday,
+        bankHolidayTitles: day.bankHolidayTitle ? [day.bankHolidayTitle] : [],
       });
     }
   } else if (scale === "week") {
@@ -305,6 +316,7 @@ export function buildTimeline(
     let cursor = startOfWeek(rangeStart);
     while (cursor.getTime() < rangeEnd.getTime()) {
       const weekEnd = endOfDay(addDays(cursor, 6));
+      const bankHolidayTitles = getBankHolidayTitlesForRange(days, cursor, weekEnd);
       units.push({
         start: new Date(cursor),
         end: weekEnd,
@@ -313,6 +325,8 @@ export function buildTimeline(
         subLabel: formatWeekSubLabel(cursor),
         isCurrent: isSameYMD(cursor, todayWeekStart),
         isWeekend: false,
+        isBankHoliday: bankHolidayTitles.length > 0,
+        bankHolidayTitles,
       });
       cursor = addDays(cursor, 7);
     }
@@ -321,6 +335,7 @@ export function buildTimeline(
     let cursor = startOfMonth(rangeStart);
     while (cursor.getTime() < rangeEnd.getTime()) {
       const monthEnd = endOfMonth(cursor);
+      const bankHolidayTitles = getBankHolidayTitlesForRange(days, cursor, monthEnd);
       units.push({
         start: new Date(cursor),
         end: monthEnd,
@@ -329,6 +344,8 @@ export function buildTimeline(
         subLabel: String(cursor.getFullYear()),
         isCurrent: isSameYM(cursor, todayMonthStart),
         isWeekend: false,
+        isBankHoliday: bankHolidayTitles.length > 0,
+        bankHolidayTitles,
       });
       cursor = addMonths(cursor, 1);
     }
@@ -342,6 +359,21 @@ export function buildTimeline(
     totalDays,
     units,
   };
+}
+
+function getBankHolidayTitlesForRange(
+  days: TimelineDay[],
+  start: Date,
+  end: Date,
+): string[] {
+  return days
+    .filter(
+      (day) =>
+        day.bankHolidayTitle !== null &&
+        day.date.getTime() >= start.getTime() &&
+        day.date.getTime() <= end.getTime(),
+    )
+    .map((day) => day.bankHolidayTitle as string);
 }
 
 export function positionAssignment(
