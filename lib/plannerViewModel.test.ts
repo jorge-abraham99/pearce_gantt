@@ -10,7 +10,7 @@ import {
   filterAssignments,
   positionAssignment,
 } from "@/lib/plannerViewModel";
-import type { GanttAssignment } from "@/types/planner";
+import type { GanttAssignment, WorkerSkill } from "@/types/planner";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -32,6 +32,16 @@ function makeAssignment(overrides: Partial<GanttAssignment> = {}): GanttAssignme
     schedule_end: "2026-05-11T16:00:00.000Z",
     scheduled_hours: 8,
     status: "scheduled",
+    ...overrides,
+  };
+}
+
+function makeWorkerSkill(overrides: Partial<WorkerSkill> = {}): WorkerSkill {
+  return {
+    id: 1,
+    worker_id: 1,
+    name: "welding",
+    skill: "welding",
     ...overrides,
   };
 }
@@ -299,6 +309,57 @@ describe("buildWorkerRows", () => {
     expect(alex!.totalHours).toBe(12);
     expect(alex!.assignmentCount).toBe(2);
     expect(rows[0].workerName).toBe("Alex");
+  });
+
+  it("attaches normalized primary skills from worker skills", () => {
+    const assignments = [
+      makeAssignment({
+        worker_id: 1,
+        worker_name: "Alex",
+      }),
+      makeAssignment({
+        assignment_id: 2,
+        worker_id: 2,
+        worker_name: "Sam",
+      }),
+    ];
+
+    const rows = buildWorkerRows(assignments, "day", [
+      makeWorkerSkill({ id: 1, worker_id: 1, skill: "welding" }),
+      makeWorkerSkill({ id: 2, worker_id: 1, skill: "pressing" }),
+      makeWorkerSkill({ id: 3, worker_id: 2, skill: "assembly" }),
+    ]);
+
+    expect(rows.find((row) => row.workerName === "Alex")?.primarySkill).toBe(
+      "Pressing",
+    );
+    expect(rows.find((row) => row.workerName === "Sam")?.primarySkill).toBe(
+      "Assembling",
+    );
+  });
+
+  it("falls back to assignment stage when no worker skill exists", () => {
+    const rows = buildWorkerRows([
+      makeAssignment({
+        stage: "Spraying",
+      }),
+    ]);
+
+    expect(rows[0].primarySkill).toBe("Spraying");
+  });
+
+  it("uses Other for workers with unknown skill records", () => {
+    const rows = buildWorkerRows(
+      [
+        makeAssignment({
+          stage: "Welding",
+        }),
+      ],
+      "day",
+      [makeWorkerSkill({ skill: "testing" })],
+    );
+
+    expect(rows[0].primarySkill).toBe("Other");
   });
 });
 

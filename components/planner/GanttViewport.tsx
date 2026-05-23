@@ -26,9 +26,14 @@ type GanttViewportProps = {
   renderRowCell: (rowIndex: number, columnKey: string) => ReactNode;
   renderRowBars: (rowIndex: number) => ReactNode;
   onRowClick?: (index: number) => void;
+  isRowInteractive?: (index: number) => boolean;
   isRowSelected?: (index: number) => boolean;
   isRowHighlighted?: (index: number) => boolean;
   rowClassName?: (index: number) => string;
+  rowTimelineBackground?: (
+    index: number,
+    defaultBackground: string,
+  ) => string;
   headerExtra?: ReactNode;
   emptyState?: ReactNode;
 };
@@ -41,9 +46,11 @@ export default function GanttViewport({
   renderRowCell,
   renderRowBars,
   onRowClick,
+  isRowInteractive,
   isRowSelected,
   isRowHighlighted,
   rowClassName,
+  rowTimelineBackground,
   headerExtra,
   emptyState,
 }: GanttViewportProps) {
@@ -146,6 +153,9 @@ export default function GanttViewport({
             const highlighted = isRowHighlighted?.(index) ?? false;
             const height = resolveHeight(index);
             const extraClass = rowClassName?.(index) ?? "";
+            const interactive =
+              Boolean(onRowClick) && (isRowInteractive?.(index) ?? true);
+            const timelineBackground = buildRowBackground(timeline, unitWidth);
             return (
               <div
                 key={index}
@@ -177,22 +187,33 @@ export default function GanttViewport({
                   }}
                 >
                   {columns.map((col, colIndex) => (
-                    <button
-                      key={col.key}
-                      type="button"
-                      onClick={
-                        onRowClick ? () => onRowClick(index) : undefined
-                      }
-                      disabled={!onRowClick}
-                      className={`flex items-center px-3 text-left transition hover:bg-[var(--panel-2)] ${
-                        colIndex < columns.length - 1
-                          ? "border-r border-[var(--line)]"
-                          : ""
-                      } ${onRowClick ? "cursor-pointer" : "cursor-default"}`}
-                      style={{ height }}
-                    >
-                      {renderRowCell(index, col.key)}
-                    </button>
+                    interactive ? (
+                      <button
+                        key={col.key}
+                        type="button"
+                        onClick={() => onRowClick?.(index)}
+                        className={`flex items-center px-3 text-left transition hover:bg-[var(--panel-2)] ${
+                          colIndex < columns.length - 1
+                            ? "border-r border-[var(--line)]"
+                            : ""
+                        } cursor-pointer`}
+                        style={{ height }}
+                      >
+                        {renderRowCell(index, col.key)}
+                      </button>
+                    ) : (
+                      <div
+                        key={col.key}
+                        className={`flex items-center px-3 text-left ${
+                          colIndex < columns.length - 1
+                            ? "border-r border-[var(--line)]"
+                            : ""
+                        } cursor-default`}
+                        style={{ height }}
+                      >
+                        {renderRowCell(index, col.key)}
+                      </div>
+                    )
                   ))}
                 </div>
                 <div
@@ -200,7 +221,9 @@ export default function GanttViewport({
                   style={{
                     width: timelineWidth,
                     height,
-                    background: buildRowBackground(timeline, unitWidth),
+                    background: rowTimelineBackground
+                      ? rowTimelineBackground(index, timelineBackground)
+                      : timelineBackground,
                   }}
                 >
                   {renderRowBars(index)}

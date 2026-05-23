@@ -1,9 +1,19 @@
+
+import type { GanttAssignment, WorkerSkill } from "@/types/planner";
+
 import { getBankHolidayByDateKey } from "@/lib/bankHolidays";
-import type { GanttAssignment } from "@/types/planner";
+
 
 export type PlannerView = "orders" | "workers";
 
 export type TimelineScale = "day" | "week" | "month";
+
+export type WorkerSkillGroup =
+  | "Pressing"
+  | "Welding"
+  | "Assembling"
+  | "Spraying"
+  | "Other";
 
 export type PlannerFilters = {
   orderNumber: string;
@@ -73,6 +83,7 @@ export type OrderGanttRow = {
 export type WorkerGanttRow = {
   workerId: GanttAssignment["worker_id"];
   workerName: string;
+  primarySkill: WorkerSkillGroup;
   totalHours: number;
   assignmentCount: number;
   assignments: PositionedAssignment[];
@@ -102,6 +113,25 @@ export type PlannerStats = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_BAR_WIDTH_PCT = 0.6;
+export const WORKER_SKILL_ORDER: WorkerSkillGroup[] = [
+  "Pressing",
+  "Welding",
+  "Assembling",
+  "Spraying",
+  "Other",
+];
+
+const WORKER_SKILL_ALIASES: Record<string, WorkerSkillGroup> = {
+  press: "Pressing",
+  pressing: "Pressing",
+  weld: "Welding",
+  welding: "Welding",
+  assemble: "Assembling",
+  assembling: "Assembling",
+  assembly: "Assembling",
+  spray: "Spraying",
+  spraying: "Spraying",
+};
 
 function startOfDay(date: Date): Date {
   const next = new Date(date);
@@ -145,6 +175,53 @@ function isSameYM(left: Date, right: Date): boolean {
 function toHours(value: GanttAssignment["scheduled_hours"]): number {
   const num = typeof value === "number" ? value : Number(value);
   return Number.isFinite(num) ? num : 0;
+}
+
+export function normalizeWorkerSkill(
+  value: string | null | undefined,
+): WorkerSkillGroup | null {
+  const key = value?.trim().toLowerCase();
+  if (!key) return null;
+  return WORKER_SKILL_ALIASES[key] ?? null;
+}
+
+function pickKnownWorkerSkill(values: Array<string | null | undefined>) {
+  const normalized = new Set<WorkerSkillGroup>();
+  for (const value of values) {
+    const skill = normalizeWorkerSkill(value);
+    if (skill) normalized.add(skill);
+  }
+
+  return WORKER_SKILL_ORDER.find(
+    (skill) => skill !== "Other" && normalized.has(skill),
+  );
+}
+
+function buildWorkerSkillsById(workerSkills: WorkerSkill[]) {
+  const byWorker = new Map<string, string[]>();
+  for (const skill of workerSkills) {
+    const key = String(skill.worker_id);
+    const values = byWorker.get(key) ?? [];
+    values.push(skill.skill);
+    byWorker.set(key, values);
+  }
+  return byWorker;
+}
+
+function resolvePrimaryWorkerSkill(
+  workerId: GanttAssignment["worker_id"],
+  assignments: GanttAssignment[],
+  workerSkillsById: Map<string, string[]>,
+): WorkerSkillGroup {
+  const skillValues = workerSkillsById.get(String(workerId));
+  if (skillValues && skillValues.length > 0) {
+    return pickKnownWorkerSkill(skillValues) ?? "Other";
+  }
+
+  return (
+    pickKnownWorkerSkill(assignments.map((assignment) => assignment.stage)) ??
+    "Other"
+  );
 }
 
 function formatDayLabel(date: Date): string {
@@ -480,9 +557,11 @@ export function buildOrderRows(
 export function buildWorkerRows(
   assignments: GanttAssignment[],
   scale: TimelineScale = "day",
+  workerSkills: WorkerSkill[] = [],
 ): WorkerGanttRow[] {
   const timeline = buildTimeline(assignments, scale);
   const grouped = new Map<string, GanttAssignment[]>();
+  const workerSkillsById = buildWorkerSkillsById(workerSkills);
 
   for (const assignment of assignments) {
     const key = String(assignment.worker_id);
@@ -509,6 +588,11 @@ export function buildWorkerRows(
     rows.push({
       workerId: head.worker_id,
       workerName: head.worker_name,
+      primarySkill: resolvePrimaryWorkerSkill(
+        head.worker_id,
+        sorted,
+        workerSkillsById,
+      ),
       totalHours,
       assignmentCount: positioned.length,
       assignments: positioned,
