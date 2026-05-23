@@ -99,8 +99,10 @@ export type ScheduleOrderResponse = {
   orderNumber: string;
   customer: string;
   balerName: string;
+  requestedStartDate: string;
   scheduledStart: string;
   scheduledEnd: string;
+  scheduledOnRequestedDate: boolean;
   totalScheduledHours: number;
   assignmentsCreated: number;
 };

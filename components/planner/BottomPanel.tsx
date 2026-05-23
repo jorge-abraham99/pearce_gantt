@@ -113,6 +113,58 @@ function LastScheduleCard({ last }: { last: ScheduleOrderResponse }) {
           <dd>{last.assignmentsCreated}</dd>
         </div>
       </dl>
+      <div className="mt-3 rounded-xl bg-white/8 px-3 py-2 text-xs text-white/85">
+        <div className="flex items-center justify-between gap-3">
+          <span className="uppercase tracking-[0.14em] opacity-70">
+            Requested
+          </span>
+          <span>{formatDateLabel(last.requestedStartDate)}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <span className="uppercase tracking-[0.14em] opacity-70">
+            Actual start
+          </span>
+          <span>{formatDateTimeLabel(last.scheduledStart)}</span>
+        </div>
+      </div>
+      {!last.scheduledOnRequestedDate ? (
+        <p className="mt-3 rounded-xl border border-amber-300/35 bg-amber-300/12 px-3 py-2 text-xs text-amber-100">
+          No capacity was available on the requested day. This order starts on{" "}
+          {formatDateLabel(last.scheduledStart)}.
+        </p>
+      ) : (
+        <p className="mt-3 rounded-xl border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100">
+          Capacity was available on the requested day.
+        </p>
+      )}
     </div>
   );
+}
+
+function formatDateLabel(value: string): string {
+  const date = parseLocalDate(value);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatDateTimeLabel(value: string): string {
+  const date = parseLocalDate(value);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function parseLocalDate(value: string): Date {
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+  return new Date(value);
 }

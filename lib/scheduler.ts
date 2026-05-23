@@ -1,6 +1,7 @@
 import {
   WORKDAY_START_HOUR,
   addHours,
+  formatLocalDateTime,
   getWorkDate,
   maxDate,
   parseDateOnlyAsLocal,
@@ -370,10 +371,10 @@ export function computePlannedAssignments(input: SchedulerInput): SchedulerOutpu
   return {
     assignments: plannedAssignments,
     scheduledStart:
-      plannedAssignments[0]?.schedule_start ?? previousStageFinish.toISOString(),
+      plannedAssignments[0]?.schedule_start ?? formatLocalDateTime(previousStageFinish),
     scheduledEnd:
       plannedAssignments[plannedAssignments.length - 1]?.schedule_end ??
-      previousStageFinish.toISOString(),
+      formatLocalDateTime(previousStageFinish),
     totalScheduledHours: roundHours(
       plannedAssignments.reduce((acc, a) => acc + a.scheduled_hours, 0),
     ),
@@ -430,8 +431,8 @@ function simulateWorkerSchedule(input: {
         worker_id: input.worker.id, // stg_workers.id
         stage: input.stage,
         stage_order: input.stageOrder,
-        schedule_start: scheduleStart.toISOString(),
-        schedule_end: scheduleEnd.toISOString(),
+        schedule_start: formatLocalDateTime(scheduleStart),
+        schedule_end: formatLocalDateTime(scheduleEnd),
         scheduled_hours: roundHours(hoursToSchedule),
         status: "scheduled",
       });

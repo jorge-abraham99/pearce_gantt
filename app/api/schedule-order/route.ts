@@ -2,13 +2,36 @@ import { NextResponse } from "next/server";
 
 import { computePlannedAssignments } from "@/lib/scheduler";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import type { PlannedAssignment, SchedulerInput } from "@/types/planner";
 
 export const dynamic = "force-dynamic";
+
+const MAX_SCHEDULE_ATTEMPTS = 3;
+const SCHEDULE_OVERLAP_ERROR_CODE = "23P01";
+const SCHEDULE_OVERLAP_CONSTRAINT = "int_operation_assignments_no_worker_overlap";
+const MISSING_RPC_ERROR_CODE = "PGRST202";
 
 type ScheduleRequest = {
   balerTypeId: number | string;
   customer: string;
   startDate: string;
+};
+
+type ScheduleSnapshot = Pick<
+  SchedulerInput,
+  | "balerType"
+  | "requirements"
+  | "workers"
+  | "workerSkills"
+  | "defaultSchedules"
+  | "availabilityExceptions"
+  | "existingAssignments"
+>;
+
+type PersistedSchedule = {
+  orderId: number;
+  orderNumber: string;
+  assignmentsCreated: number;
 };
 
 export async function POST(request: Request) {
@@ -47,7 +70,82 @@ export async function POST(request: Request) {
   }
 
   const supabaseAdmin = getSupabaseAdmin();
+  let customerEnsured = false;
 
+  for (let attempt = 1; attempt <= MAX_SCHEDULE_ATTEMPTS; attempt += 1) {
+    const snapshot = await loadScheduleSnapshot(
+      supabaseAdmin,
+      numericBalerTypeId,
+    );
+
+    if ("response" in snapshot) {
+      return snapshot.response;
+    }
+
+    if (!customerEnsured) {
+      const customerError = await ensureCustomerExists(
+        supabaseAdmin,
+        trimmedCustomer,
+      );
+      if (customerError) {
+        return NextResponse.json({ error: customerError }, { status: 500 });
+      }
+      customerEnsured = true;
+    }
+
+    let plan;
+    try {
+      plan = computePlannedAssignments({
+        startDate,
+        ...snapshot,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Scheduler failed";
+      return NextResponse.json({ error: message }, { status: 422 });
+    }
+
+    const persisted = await persistScheduleAtomically({
+      supabaseAdmin,
+      balerTypeId: numericBalerTypeId,
+      balerName: snapshot.balerType.name,
+      customer: trimmedCustomer,
+      assignments: plan.assignments,
+    });
+
+    if ("response" in persisted) {
+      if (persisted.retryableConflict && attempt < MAX_SCHEDULE_ATTEMPTS) {
+        console.warn(
+          `[POST /api/schedule-order] overlap conflict on attempt ${attempt}; retrying with fresh assignments`,
+        );
+        continue;
+      }
+      return persisted.response;
+    }
+
+    return NextResponse.json({
+      orderId: persisted.orderId,
+      orderNumber: persisted.orderNumber,
+      customer: trimmedCustomer,
+      balerName: snapshot.balerType.name,
+      requestedStartDate: startDate,
+      scheduledStart: plan.scheduledStart,
+      scheduledEnd: plan.scheduledEnd,
+      scheduledOnRequestedDate:
+        plan.scheduledStart.slice(0, 10) === startDate,
+      totalScheduledHours: plan.totalScheduledHours,
+      assignmentsCreated: persisted.assignmentsCreated,
+    });
+  }
+
+  return NextResponse.json({
+    error: "Scheduling conflicted with another request. Please retry.",
+  }, { status: 409 });
+}
+
+async function loadScheduleSnapshot(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  balerTypeId: number,
+): Promise<ScheduleSnapshot | { response: NextResponse }> {
   const [
     balerTypeRes,
     requirementsRes,
@@ -60,43 +158,37 @@ export async function POST(request: Request) {
     supabaseAdmin
       .from("stg_baler_types")
       .select("id, name")
-      .eq("id", numericBalerTypeId)
+      .eq("id", balerTypeId)
       .is("deleted_at", null)
       .single(),
 
     supabaseAdmin
       .from("stg_baler_requirements")
       .select("*")
-      .eq("baler_type_id", numericBalerTypeId)
+      .eq("baler_type_id", balerTypeId)
       .is("deleted_at", null)
       .order("stage_sequence", { ascending: true }),
 
-    // Source-of-truth workers (replaces int_workers)
     supabaseAdmin
       .from("stg_workers")
       .select("id, name, hours_per_day, hours_per_week")
       .is("deleted_at", null),
 
-    // Skills from stg_worker_skills
     supabaseAdmin
       .from("stg_worker_skills")
       .select("id, worker_id, skill, name")
       .is("deleted_at", null),
 
-    // Weekly default schedules
     supabaseAdmin
       .from("worker_default_schedule")
       .select("id, worker_id, day_of_week, is_working, start_time, end_time")
       .is("deleted_at", null),
 
-    // Availability exceptions (holidays, overtime, etc.)
     supabaseAdmin
       .from("worker_availability_exceptions")
       .select("id, worker_id, exception_type, start_at, end_at, all_day, title, notes")
       .is("deleted_at", null),
 
-    // Existing assignments for capacity accounting
-    // worker_id references stg_workers.id after the DB migration
     supabaseAdmin
       .from("int_operation_assignments")
       .select("id, worker_id, schedule_start, schedule_end, scheduled_hours, status")
@@ -104,130 +196,154 @@ export async function POST(request: Request) {
   ]);
 
   if (balerTypeRes.error || !balerTypeRes.data) {
-    return NextResponse.json({ error: "Baler type not found" }, { status: 404 });
+    return {
+      response: NextResponse.json({ error: "Baler type not found" }, { status: 404 }),
+    };
   }
   if (requirementsRes.error) {
     console.error("[POST /api/schedule-order] requirements error:", requirementsRes.error);
-    return NextResponse.json({ error: "Failed to load baler requirements" }, { status: 500 });
+    return {
+      response: NextResponse.json({ error: "Failed to load baler requirements" }, { status: 500 }),
+    };
   }
   if (workersRes.error) {
     console.error("[POST /api/schedule-order] workers error:", workersRes.error);
-    return NextResponse.json({ error: "Failed to load workers" }, { status: 500 });
+    return {
+      response: NextResponse.json({ error: "Failed to load workers" }, { status: 500 }),
+    };
   }
   if (workerSkillsRes.error) {
     console.error("[POST /api/schedule-order] skills error:", workerSkillsRes.error);
-    return NextResponse.json({ error: "Failed to load worker skills" }, { status: 500 });
+    return {
+      response: NextResponse.json({ error: "Failed to load worker skills" }, { status: 500 }),
+    };
   }
   if (defaultSchedulesRes.error) {
     console.error("[POST /api/schedule-order] schedules error:", defaultSchedulesRes.error);
-    return NextResponse.json({ error: "Failed to load worker schedules" }, { status: 500 });
+    return {
+      response: NextResponse.json({ error: "Failed to load worker schedules" }, { status: 500 }),
+    };
   }
   if (exceptionsRes.error) {
     console.error("[POST /api/schedule-order] exceptions error:", exceptionsRes.error);
-    return NextResponse.json({ error: "Failed to load availability exceptions" }, { status: 500 });
+    return {
+      response: NextResponse.json({ error: "Failed to load availability exceptions" }, { status: 500 }),
+    };
   }
   if (existingRes.error) {
     console.error("[POST /api/schedule-order] assignments error:", existingRes.error);
-    return NextResponse.json({ error: "Failed to load existing assignments" }, { status: 500 });
+    return {
+      response: NextResponse.json({ error: "Failed to load existing assignments" }, { status: 500 }),
+    };
   }
 
-  const customerError = await ensureCustomerExists(
-    supabaseAdmin,
-    trimmedCustomer,
-  );
-  if (customerError) {
-    return NextResponse.json({ error: customerError }, { status: 500 });
-  }
-
-  let plan;
-  try {
-    plan = computePlannedAssignments({
-      startDate,
-      balerType: balerTypeRes.data,
-      requirements: requirementsRes.data ?? [],
-      workers: workersRes.data ?? [],
-      workerSkills: workerSkillsRes.data ?? [],
-      defaultSchedules: defaultSchedulesRes.data ?? [],
-      availabilityExceptions: exceptionsRes.data ?? [],
-      existingAssignments: existingRes.data ?? [],
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Scheduler failed";
-    return NextResponse.json({ error: message }, { status: 422 });
-  }
-
-  const orderNumber = createOrderNumber();
-  const { data: order, error: orderError } = await supabaseAdmin
-    .from("stg_orders")
-    .insert({
-      order_number: orderNumber,
-      customer: trimmedCustomer,
-      baler_type: balerTypeRes.data.name,
-      baler_type_id: numericBalerTypeId,
-      status: "scheduled",
-    })
-    .select("id, order_number, customer")
-    .single();
-
-  if (orderError || !order) {
-    console.error("[POST /api/schedule-order] order insert error:", orderError);
-    return NextResponse.json(
-      { error: "Failed to create scheduled order" },
-      { status: 500 },
-    );
-  }
-
-  const assignmentRows = plan.assignments.map((assignment) => ({
-    ...assignment,
-    order_id: order.id,
-    baler_name: balerTypeRes.data.name,
-    baler_type_id: numericBalerTypeId,
-  }));
-
-  const { error: assignmentsError } = await supabaseAdmin
-    .from("int_operation_assignments")
-    .insert(assignmentRows);
-
-  if (assignmentsError) {
-    console.error("[POST /api/schedule-order] assignment insert error:", assignmentsError);
-    await supabaseAdmin
-      .from("stg_orders")
-      .update({
-        status: "failed",
-        deleted_at: new Date().toISOString(),
-      })
-      .eq("id", order.id);
-
-    return NextResponse.json(
-      { error: "Failed to persist scheduled assignments" },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json({
-    orderId: order.id,
-    orderNumber: order.order_number,
-    customer: order.customer,
-    balerName: balerTypeRes.data.name,
-    scheduledStart: plan.scheduledStart,
-    scheduledEnd: plan.scheduledEnd,
-    totalScheduledHours: plan.totalScheduledHours,
-    assignmentsCreated: assignmentRows.length,
-  });
+  return {
+    balerType: balerTypeRes.data,
+    requirements: requirementsRes.data ?? [],
+    workers: workersRes.data ?? [],
+    workerSkills: workerSkillsRes.data ?? [],
+    defaultSchedules: defaultSchedulesRes.data ?? [],
+    availabilityExceptions: exceptionsRes.data ?? [],
+    existingAssignments: existingRes.data ?? [],
+  };
 }
 
-function createOrderNumber() {
-  const now = new Date();
-  const stamp = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-    String(now.getHours()).padStart(2, "0"),
-    String(now.getMinutes()).padStart(2, "0"),
-    String(now.getSeconds()).padStart(2, "0"),
-  ].join("");
+async function persistScheduleAtomically(input: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  balerTypeId: number;
+  balerName: string;
+  customer: string;
+  assignments: PlannedAssignment[];
+}): Promise<
+  | PersistedSchedule
+  | { response: NextResponse; retryableConflict: boolean }
+> {
+  const { data, error } = await input.supabaseAdmin.rpc(
+    "schedule_order_atomic",
+    {
+      p_baler_type_id: input.balerTypeId,
+      p_baler_name: input.balerName,
+      p_customer: input.customer,
+      p_assignments: input.assignments,
+    },
+  );
 
-  return `O${stamp}`;
+  if (error) {
+    if (isMissingScheduleOrderAtomicError(error)) {
+      console.error("[POST /api/schedule-order] missing schedule_order_atomic rpc:", error);
+      return {
+        response: NextResponse.json(
+          {
+            error:
+              "Database migration missing: schedule_order_atomic is not installed. Apply migrations/002_schedule_order_atomic.sql before scheduling.",
+          },
+          { status: 500 },
+        ),
+        retryableConflict: false,
+      };
+    }
+
+    if (isScheduleOverlapConflict(error)) {
+      return {
+        response: NextResponse.json(
+          { error: "Scheduling conflicted with another request. Please retry." },
+          { status: 409 },
+        ),
+        retryableConflict: true,
+      };
+    }
+
+    console.error("[POST /api/schedule-order] atomic rpc error:", error);
+    return {
+      response: NextResponse.json(
+        { error: "Failed to persist scheduled order" },
+        { status: 500 },
+      ),
+      retryableConflict: false,
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    console.error("[POST /api/schedule-order] atomic rpc returned no row");
+    return {
+      response: NextResponse.json(
+        { error: "Failed to persist scheduled order" },
+        { status: 500 },
+      ),
+      retryableConflict: false,
+    };
+  }
+
+  return {
+    orderId: Number(row.order_id),
+    orderNumber: String(row.order_number),
+    assignmentsCreated: Number(row.assignments_created ?? input.assignments.length),
+  };
+}
+
+function isScheduleOverlapConflict(error: {
+  code?: string;
+  message?: string;
+  details?: string;
+} | null | undefined): boolean {
+  if (!error) return false;
+  if (error.code === SCHEDULE_OVERLAP_ERROR_CODE) return true;
+
+  const text = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  return text.includes(SCHEDULE_OVERLAP_CONSTRAINT.toLowerCase());
+}
+
+function isMissingScheduleOrderAtomicError(error: {
+  code?: string;
+  message?: string;
+  details?: string;
+} | null | undefined): boolean {
+  if (!error) return false;
+  if (error.code !== MISSING_RPC_ERROR_CODE) return false;
+
+  const text = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  return text.includes("schedule_order_atomic");
 }
 
 async function ensureCustomerExists(
