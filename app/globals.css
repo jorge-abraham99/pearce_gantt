@@ -15,6 +15,8 @@
   --accent: #c4542d;
   --today-band: rgba(196, 84, 45, 0.10);
   --weekend: rgba(20, 33, 43, 0.04);
+  --bank-holiday: rgba(41, 112, 108, 0.12);
+  --bank-holiday-strong: #29706c;
 }
 
 * {

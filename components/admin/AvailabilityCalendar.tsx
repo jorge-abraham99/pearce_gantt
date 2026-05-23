@@ -2,6 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 
+import {
+  formatBankHolidayAcronym,
+  formatBankHolidayTitle,
+  getBankHolidayByDateKey,
+} from "@/lib/bankHolidays";
 import type {
   Id,
   WorkerAvailabilityException,
@@ -108,6 +113,10 @@ export default function AvailabilityCalendar({
           </button>
         )}
         <div className="ml-auto flex flex-wrap gap-3">
+          <span className="flex items-center gap-1 text-xs text-[var(--muted)]">
+            <span className="inline-block h-3 w-3 rounded-sm border border-[var(--bank-holiday-strong)] bg-[var(--bank-holiday)]" />
+            Bank holiday
+          </span>
           {Object.entries(EXCEPTION_COLORS).map(([type, c]) => (
             <span key={type} className="flex items-center gap-1 text-xs text-[var(--muted)]">
               <span className={`inline-block h-3 w-3 rounded-sm border ${c.bg}`} />
@@ -130,24 +139,38 @@ export default function AvailabilityCalendar({
             </div>
             {dates.map((date) => {
               const isToday = date.getTime() === today.getTime();
+              const bankHoliday = getBankHolidayByDateKey(dateKey(date));
               return (
                 <div
                   key={date.toISOString()}
                   style={{ width: CELL_W, minWidth: CELL_W }}
                   className={`flex flex-col items-center justify-center border-r border-[var(--line-faint)] py-1.5 text-center ${
-                    isToday ? "bg-[var(--today-band)]" : ""
+                    bankHoliday
+                      ? "bg-[var(--bank-holiday)]"
+                      : isToday
+                        ? "bg-[var(--today-band)]"
+                        : ""
                   }`}
+                  title={bankHoliday?.title}
                 >
                   <span
                     className={`text-[10px] font-bold uppercase tracking-[0.12em] ${
-                      isToday ? "text-[var(--accent)]" : "text-[var(--muted)]"
+                      bankHoliday
+                        ? "text-[var(--bank-holiday-strong)]"
+                        : isToday
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--muted)]"
                     }`}
                   >
                     {fmtDay(date)}
                   </span>
                   <span
                     className={`text-sm font-semibold ${
-                      isToday ? "text-[var(--accent)]" : "text-[var(--ink)]"
+                      bankHoliday
+                        ? "text-[var(--bank-holiday-strong)]"
+                        : isToday
+                          ? "text-[var(--accent)]"
+                          : "text-[var(--ink)]"
                     }`}
                   >
                     {date.getDate()}
@@ -180,6 +203,10 @@ export default function AvailabilityCalendar({
                 const defaultDay = defaultSchedule.find((s) => s.day_of_week === dayOfWeek);
                 const isDefaultWorking = defaultDay?.is_working ?? true;
                 const isToday = date.getTime() === today.getTime();
+                const bankHoliday = getBankHolidayByDateKey(dateKey(date));
+                const bankHolidayTitle = bankHoliday
+                  ? formatBankHolidayTitle(bankHoliday.title)
+                  : null;
 
                 const dayExceptions = exceptions.filter((e) =>
                   exceptionCoversDate(e, date),
@@ -190,7 +217,9 @@ export default function AvailabilityCalendar({
 
                 const cellBg = topException
                   ? EXCEPTION_COLORS[topException.exception_type]?.bg ?? ""
-                  : !isDefaultWorking
+                  : bankHoliday
+                    ? "bg-[var(--bank-holiday)]"
+                    : !isDefaultWorking
                     ? "bg-[var(--weekend)]"
                     : isToday
                       ? "bg-[var(--today-band)]"
@@ -200,13 +229,15 @@ export default function AvailabilityCalendar({
                   <div
                     key={date.toISOString()}
                     style={{ width: CELL_W, minWidth: CELL_W }}
-                    className={`relative flex cursor-pointer items-center justify-center border-r border-[var(--line-faint)] p-0.5 transition hover:brightness-95 ${cellBg}`}
+                    className={`group relative flex cursor-pointer items-center justify-center border-r border-[var(--line-faint)] p-0.5 transition hover:brightness-95 ${cellBg}`}
                     title={
-                      !isDefaultWorking
-                        ? "Non-working day"
-                        : topException
-                          ? `${topException.exception_type}${topException.title ? `: ${topException.title}` : ""}`
-                          : "Working"
+                      topException
+                        ? `${topException.exception_type}${topException.title ? `: ${topException.title}` : ""}${bankHolidayTitle ? `; ${bankHolidayTitle}` : ""}`
+                        : bankHolidayTitle
+                          ? bankHolidayTitle
+                          : !isDefaultWorking
+                            ? "Non-working day"
+                            : "Working"
                     }
                     onClick={() => {
                       if (topException) {
@@ -242,6 +273,26 @@ export default function AvailabilityCalendar({
                           ×
                         </button>
                       </div>
+                    ) : bankHoliday ? (
+                      <div className="flex w-full flex-col items-center gap-0.5">
+                        <span
+                          className="text-center text-[10px] font-normal uppercase leading-none text-[var(--bank-holiday-strong)]"
+                          title={bankHolidayTitle ?? undefined}
+                        >
+                          {formatBankHolidayAcronym(bankHoliday.title)}
+                        </span>
+                        {bankHolidayTitle ? (
+                          <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--ink)] px-2 py-1 text-[10px] font-normal normal-case leading-tight text-white shadow-lg group-hover:block">
+                            {bankHolidayTitle}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {topException && bankHoliday ? (
+                      <span
+                        className="absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full bg-[var(--bank-holiday-strong)]"
+                        title={bankHolidayTitle ?? undefined}
+                      />
                     ) : null}
                   </div>
                 );
@@ -284,6 +335,14 @@ function exceptionCoversDate(
 }
 
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function dateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
 
 function fmtDay(date: Date): string {
   return DAY_SHORT[getISOWeekday(date) - 1];

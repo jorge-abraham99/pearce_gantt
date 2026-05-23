@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import type {
   ExceptionType,
@@ -89,12 +89,6 @@ export default function ExceptionFormModal({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isOvertime = exceptionType === "overtime";
-
-  useEffect(() => {
-    if (isOvertime && allDay) {
-      setAllDay(false);
-    }
-  }, [allDay, isOvertime]);
 
   function handleSubmit() {
     setError(null);
