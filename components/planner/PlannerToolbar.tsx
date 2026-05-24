@@ -11,6 +11,8 @@ type PlannerToolbarProps = {
   onViewChange: (view: PlannerView) => void;
   onScheduleClick: () => void;
   isScheduleActive: boolean;
+  onRecalculateClick: () => void;
+  isRecalculating: boolean;
   orderCount: number;
   taskCount: number;
   workerCount: number;
@@ -36,6 +38,8 @@ export default function PlannerToolbar({
   onViewChange,
   onScheduleClick,
   isScheduleActive,
+  onRecalculateClick,
+  isRecalculating,
   orderCount,
   taskCount,
   workerCount,
@@ -129,6 +133,14 @@ export default function PlannerToolbar({
         </div>
 
         {/* Schedule CTA */}
+        <button
+          type="button"
+          onClick={onRecalculateClick}
+          disabled={isRecalculating}
+          className="rounded-full border border-[var(--line)] bg-white px-4 py-1.5 text-sm font-bold uppercase tracking-[0.14em] text-[var(--ink)] transition hover:border-[var(--ink)] hover:bg-[var(--panel-2)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isRecalculating ? "Recalculating…" : "Recalculate future schedule"}
+        </button>
         <button
           type="button"
           onClick={onScheduleClick}
