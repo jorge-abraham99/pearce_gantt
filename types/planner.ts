@@ -107,6 +107,17 @@ export type ScheduleOrderResponse = {
   assignmentsCreated: number;
 };
 
+export type RecalculateFutureScheduleResponse = {
+  runId: Id;
+  cutoffAt: string;
+  ordersConsidered: number;
+  ordersRecalculated: number;
+  ordersSkippedStarted: number;
+  assignmentsFrozen: number;
+  assignmentsRemoved: number;
+  assignmentsCreated: number;
+};
+
 // ── Baler admin types ────────────────────────────────────────────────────────
 
 /** Flattened view model for the Balers admin table/modal */

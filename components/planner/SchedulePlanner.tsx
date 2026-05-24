@@ -24,6 +24,7 @@ import type {
   Customer,
   GanttAssignment,
   Id,
+  RecalculateFutureScheduleResponse,
   ScheduleOrderResponse,
   WorkerSkill,
 } from "@/types/planner";
@@ -119,9 +120,13 @@ export default function SchedulePlanner({
   const [highlightedOrderId, setHighlightedOrderId] = useState<Id | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const [lastSchedule, setLastSchedule] =
     useState<ScheduleOrderResponse | null>(null);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [plannerNotice, setPlannerNotice] = useState<{
+    tone: "error" | "success";
+    message: string;
+  } | null>(null);
 
   const filteredAssignments = useMemo(
     () => filterAssignments(assignments, filters),
@@ -239,28 +244,78 @@ export default function SchedulePlanner({
 
   function handleScheduled(response: ScheduleOrderResponse) {
     setLastSchedule(response);
-    setRefreshError(null);
+    setPlannerNotice(null);
     setCustomers((current) => ensureCustomerOption(current, response.customer));
 
-    void fetch("/api/gantt", { cache: "no-store" })
+    void refreshGantt(response.orderId)
+      .catch((err) => {
+        setPlannerNotice({
+          tone: "error",
+          message:
+            err instanceof Error ? err.message : "Failed to refresh gantt",
+        });
+      });
+  }
+
+  function handleRecalculateClick() {
+    if (isRecalculating) return;
+
+    const confirmed = confirm(
+      "Recalculate future schedule for orders that have not started yet?\n\nOrders with any started, in-progress, or completed work will be left unchanged.",
+    );
+    if (!confirmed) return;
+
+    setIsRecalculating(true);
+    setPlannerNotice(null);
+
+    void fetch("/api/recalculate-future-schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ triggeredBy: "planner_ui" }),
+    })
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok) {
-          throw new Error(json.error ?? "Failed to refresh gantt");
+          throw new Error(
+            (json as { error?: string }).error ??
+              "Failed to recalculate future schedule",
+          );
         }
-        const fresh = (json.assignments ?? []) as GanttAssignment[];
-        const freshWorkerSkills = (json.workerSkills ?? []) as WorkerSkill[];
-        setAssignments(fresh);
-        setWorkerSkills(freshWorkerSkills);
-        if (response.orderId !== undefined && response.orderId !== null) {
-          setHighlightedOrderId(response.orderId);
-        }
+
+        const response = json as RecalculateFutureScheduleResponse;
+        await refreshGantt();
+        setPlannerNotice({
+          tone: "success",
+          message: buildRecalculationMessage(response),
+        });
       })
       .catch((err) => {
-        setRefreshError(
-          err instanceof Error ? err.message : "Failed to refresh gantt",
-        );
+        setPlannerNotice({
+          tone: "error",
+          message:
+            err instanceof Error
+              ? err.message
+              : "Failed to recalculate future schedule",
+        });
+      })
+      .finally(() => {
+        setIsRecalculating(false);
       });
+  }
+
+  async function refreshGantt(highlightOrderId?: Id | null) {
+    const res = await fetch("/api/gantt", { cache: "no-store" });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.error ?? "Failed to refresh gantt");
+    }
+    const fresh = (json.assignments ?? []) as GanttAssignment[];
+    const freshWorkerSkills = (json.workerSkills ?? []) as WorkerSkill[];
+    setAssignments(fresh);
+    setWorkerSkills(freshWorkerSkills);
+    if (highlightOrderId !== undefined && highlightOrderId !== null) {
+      setHighlightedOrderId(highlightOrderId);
+    }
   }
 
   function toggleOrder(orderId: Id) {
@@ -296,6 +351,8 @@ export default function SchedulePlanner({
           if (!isScheduleOpen) setSelection(null);
         }}
         isScheduleActive={isScheduleOpen}
+        onRecalculateClick={handleRecalculateClick}
+        isRecalculating={isRecalculating}
         orderCount={stats.orderCount}
         taskCount={stats.assignmentCount}
         workerCount={stats.workerCount}
@@ -309,9 +366,15 @@ export default function SchedulePlanner({
         }
       />
 
-      {refreshError ? (
-        <div className="border-b border-red-200 bg-red-50 px-5 py-2 text-sm text-red-900">
-          {refreshError}
+      {plannerNotice ? (
+        <div
+          className={`border-b px-5 py-2 text-sm ${
+            plannerNotice.tone === "error"
+              ? "border-red-200 bg-red-50 text-red-900"
+              : "border-emerald-200 bg-emerald-50 text-emerald-900"
+          }`}
+        >
+          {plannerNotice.message}
         </div>
       ) : null}
 
@@ -375,6 +438,49 @@ export default function SchedulePlanner({
       />
     </div>
   );
+}
+
+function buildRecalculationMessage(
+  response: RecalculateFutureScheduleResponse,
+): string {
+  if (
+    response.ordersRecalculated > 0 &&
+    response.assignmentsRemoved === 0 &&
+    response.assignmentsCreated === 0
+  ) {
+    return `No schedule changes were required for ${response.ordersRecalculated} eligible order${
+      response.ordersRecalculated === 1 ? "" : "s"
+    }.${
+      response.ordersSkippedStarted > 0
+        ? ` Skipped ${response.ordersSkippedStarted} started order${
+            response.ordersSkippedStarted === 1 ? "" : "s"
+          }.`
+        : ""
+    }`;
+  }
+
+  if (response.ordersRecalculated === 0) {
+    if (response.ordersSkippedStarted > 0) {
+      return `No whole orders were eligible to move. ${response.ordersSkippedStarted} order${
+        response.ordersSkippedStarted === 1 ? "" : "s"
+      } already started or had non-scheduled work.`;
+    }
+    return "No future scheduled orders needed recalculation.";
+  }
+
+  return `Recalculated ${response.ordersRecalculated} order${
+    response.ordersRecalculated === 1 ? "" : "s"
+  }. Replaced ${response.assignmentsRemoved} future assignment${
+    response.assignmentsRemoved === 1 ? "" : "s"
+  } with ${response.assignmentsCreated} newly scheduled assignment${
+    response.assignmentsCreated === 1 ? "" : "s"
+  }.${
+    response.ordersSkippedStarted > 0
+      ? ` Skipped ${response.ordersSkippedStarted} started order${
+          response.ordersSkippedStarted === 1 ? "" : "s"
+        }.`
+      : ""
+  }`;
 }
 
 const CANONICAL_STAGE_ORDER: Record<string, number> = {
