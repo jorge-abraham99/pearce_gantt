@@ -3,6 +3,7 @@ export type Id = number | string;
 export type BalerType = {
   id: Id;
   name: string;
+  active?: boolean | null;
 };
 
 export type Customer = {
@@ -63,6 +64,8 @@ export type SchedulerInput = {
   workers: StgWorker[];
   /** Skills from stg_worker_skills — one row per worker+skill */
   workerSkills: WorkerSkill[];
+  /** Optional worker-to-baler allowlist rows */
+  workerBalerTypeCapabilities: WorkerBalerTypeCapability[];
   /** Weekly recurring schedule from worker_default_schedule */
   defaultSchedules: WorkerDefaultSchedule[];
   /** Holidays, overtime, etc. from worker_availability_exceptions */
@@ -162,6 +165,15 @@ export type WorkerDefaultSchedule = {
   end_time: string | null;   // "17:00"
 };
 
+export type WorkerBalerTypeCapability = {
+  id: Id;
+  worker_id: Id;
+  baler_type_id: Id;
+  created_at?: string | null;
+  updated_at?: string | null;
+  deleted_at?: string | null;
+};
+
 export type ExceptionType =
   | "holiday"
   | "sickness"
@@ -187,6 +199,7 @@ export type WorkerAvailabilityException = {
 export type WorkerListItem = {
   worker: StgWorker;
   skills: WorkerSkill[];
+  balerTypeCapabilities: WorkerBalerTypeCapability[];
   defaultSchedule: WorkerDefaultSchedule[];
   exceptions: WorkerAvailabilityException[];
 };
@@ -194,6 +207,8 @@ export type WorkerListItem = {
 export type WorkerDetail = {
   worker: StgWorker;
   skills: WorkerSkill[];
+  balerTypeCapabilities: WorkerBalerTypeCapability[];
   defaultSchedule: WorkerDefaultSchedule[];
   exceptions: WorkerAvailabilityException[];
+  availableBalerTypes: BalerType[];
 };

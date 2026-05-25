@@ -11,7 +11,14 @@ export async function GET(
   const { id } = await params;
   const supabase = getSupabaseAdmin();
 
-  const [workerRes, skillsRes, scheduleRes, exceptionsRes] = await Promise.all([
+  const [
+    workerRes,
+    skillsRes,
+    capabilitiesRes,
+    scheduleRes,
+    exceptionsRes,
+    balerTypesRes,
+  ] = await Promise.all([
     supabase
       .from("stg_workers")
       .select("*")
@@ -25,6 +32,11 @@ export async function GET(
       .is("deleted_at", null)
       .order("skill"),
     supabase
+      .from("worker_baler_type_capabilities")
+      .select("*")
+      .eq("worker_id", id)
+      .is("deleted_at", null),
+    supabase
       .from("worker_default_schedule")
       .select("*")
       .eq("worker_id", id)
@@ -36,18 +48,41 @@ export async function GET(
       .eq("worker_id", id)
       .is("deleted_at", null)
       .order("start_at"),
+    supabase
+      .from("stg_baler_types")
+      .select("id, name, active")
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("name"),
   ]);
 
   if (workerRes.error) {
     const status = workerRes.error.code === "PGRST116" ? 404 : 500;
     return NextResponse.json({ error: workerRes.error.message }, { status });
   }
+  if (skillsRes.error) {
+    return NextResponse.json({ error: skillsRes.error.message }, { status: 500 });
+  }
+  if (capabilitiesRes.error) {
+    return NextResponse.json({ error: capabilitiesRes.error.message }, { status: 500 });
+  }
+  if (scheduleRes.error) {
+    return NextResponse.json({ error: scheduleRes.error.message }, { status: 500 });
+  }
+  if (exceptionsRes.error) {
+    return NextResponse.json({ error: exceptionsRes.error.message }, { status: 500 });
+  }
+  if (balerTypesRes.error) {
+    return NextResponse.json({ error: balerTypesRes.error.message }, { status: 500 });
+  }
 
   return NextResponse.json({
     worker: workerRes.data,
     skills: skillsRes.data ?? [],
+    balerTypeCapabilities: capabilitiesRes.data ?? [],
     defaultSchedule: scheduleRes.data ?? [],
     exceptions: exceptionsRes.data ?? [],
+    availableBalerTypes: balerTypesRes.data ?? [],
   });
 }
 

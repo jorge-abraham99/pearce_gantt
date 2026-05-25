@@ -9,7 +9,14 @@ export const dynamic = "force-dynamic";
 async function loadWorkerDetail(id: string): Promise<WorkerDetail | null> {
   const supabase = getSupabaseAdmin();
 
-  const [workerRes, skillsRes, scheduleRes, exceptionsRes] = await Promise.all([
+  const [
+    workerRes,
+    skillsRes,
+    capabilitiesRes,
+    scheduleRes,
+    exceptionsRes,
+    balerTypesRes,
+  ] = await Promise.all([
     supabase.from("stg_workers").select("*").eq("id", id).is("deleted_at", null).single(),
     supabase
       .from("stg_worker_skills")
@@ -17,6 +24,11 @@ async function loadWorkerDetail(id: string): Promise<WorkerDetail | null> {
       .eq("worker_id", id)
       .is("deleted_at", null)
       .order("skill"),
+    supabase
+      .from("worker_baler_type_capabilities")
+      .select("*")
+      .eq("worker_id", id)
+      .is("deleted_at", null),
     supabase
       .from("worker_default_schedule")
       .select("*")
@@ -29,15 +41,26 @@ async function loadWorkerDetail(id: string): Promise<WorkerDetail | null> {
       .eq("worker_id", id)
       .is("deleted_at", null)
       .order("start_at"),
+    supabase
+      .from("stg_baler_types")
+      .select("id, name, active")
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("name"),
   ]);
 
   if (workerRes.error) return null;
+  if (skillsRes.error || capabilitiesRes.error || scheduleRes.error || exceptionsRes.error || balerTypesRes.error) {
+    return null;
+  }
 
   return {
     worker: workerRes.data,
     skills: skillsRes.data ?? [],
+    balerTypeCapabilities: capabilitiesRes.data ?? [],
     defaultSchedule: scheduleRes.data ?? [],
     exceptions: exceptionsRes.data ?? [],
+    availableBalerTypes: balerTypesRes.data ?? [],
   };
 }
 

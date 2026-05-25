@@ -12,6 +12,7 @@ import type {
   RecalculateFutureScheduleResponse,
   StgWorker,
   WorkerAvailabilityException,
+  WorkerBalerTypeCapability,
   WorkerDefaultSchedule,
   WorkerSkill,
 } from "@/types/planner";
@@ -59,6 +60,7 @@ type RecalculationSnapshot = {
   requirements: BalerRequirement[];
   workers: StgWorker[];
   workerSkills: WorkerSkill[];
+  workerBalerTypeCapabilities: WorkerBalerTypeCapability[];
   defaultSchedules: WorkerDefaultSchedule[];
   availabilityExceptions: WorkerAvailabilityException[];
 };
@@ -105,6 +107,7 @@ export async function POST(request: Request) {
         requirements: snapshot.requirements,
         workers: snapshot.workers,
         workerSkills: snapshot.workerSkills,
+        workerBalerTypeCapabilities: snapshot.workerBalerTypeCapabilities,
         defaultSchedules: snapshot.defaultSchedules,
         availabilityExceptions: snapshot.availabilityExceptions,
       });
@@ -299,6 +302,7 @@ async function loadRecalculationSnapshot(
     assignmentsRes,
     workersRes,
     workerSkillsRes,
+    workerCapabilitiesRes,
     defaultSchedulesRes,
     exceptionsRes,
   ] = await Promise.all([
@@ -317,6 +321,10 @@ async function loadRecalculationSnapshot(
       .select("id, worker_id, skill, name")
       .is("deleted_at", null),
     supabaseAdmin
+      .from("worker_baler_type_capabilities")
+      .select("id, worker_id, baler_type_id")
+      .is("deleted_at", null),
+    supabaseAdmin
       .from("worker_default_schedule")
       .select("id, worker_id, day_of_week, is_working, start_time, end_time")
       .is("deleted_at", null),
@@ -329,6 +337,9 @@ async function loadRecalculationSnapshot(
   if (assignmentsRes.error) throw new Error("Failed to load existing assignments");
   if (workersRes.error) throw new Error("Failed to load workers");
   if (workerSkillsRes.error) throw new Error("Failed to load worker skills");
+  if (workerCapabilitiesRes.error) {
+    throw new Error("Failed to load worker baler capabilities");
+  }
   if (defaultSchedulesRes.error) throw new Error("Failed to load worker schedules");
   if (exceptionsRes.error) {
     throw new Error("Failed to load worker availability exceptions");
@@ -344,6 +355,8 @@ async function loadRecalculationSnapshot(
       requirements: [],
       workers: (workersRes.data ?? []) as StgWorker[],
       workerSkills: (workerSkillsRes.data ?? []) as WorkerSkill[],
+      workerBalerTypeCapabilities:
+        (workerCapabilitiesRes.data ?? []) as WorkerBalerTypeCapability[],
       defaultSchedules: (defaultSchedulesRes.data ?? []) as WorkerDefaultSchedule[],
       availabilityExceptions:
         (exceptionsRes.data ?? []) as WorkerAvailabilityException[],
@@ -389,6 +402,8 @@ async function loadRecalculationSnapshot(
     requirements: (requirementsRes.data ?? []) as BalerRequirement[],
     workers: (workersRes.data ?? []) as StgWorker[],
     workerSkills: (workerSkillsRes.data ?? []) as WorkerSkill[],
+    workerBalerTypeCapabilities:
+      (workerCapabilitiesRes.data ?? []) as WorkerBalerTypeCapability[],
     defaultSchedules: (defaultSchedulesRes.data ?? []) as WorkerDefaultSchedule[],
     availabilityExceptions:
       (exceptionsRes.data ?? []) as WorkerAvailabilityException[],

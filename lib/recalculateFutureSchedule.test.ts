@@ -121,6 +121,7 @@ describe("buildFutureScheduleRecalculationPlan", () => {
       requirements,
       workers,
       workerSkills,
+      workerBalerTypeCapabilities: [],
       defaultSchedules,
       availabilityExceptions: [],
     });
@@ -181,6 +182,7 @@ describe("buildFutureScheduleRecalculationPlan", () => {
       requirements,
       workers,
       workerSkills,
+      workerBalerTypeCapabilities: [],
       defaultSchedules,
       availabilityExceptions: [],
     });
@@ -245,6 +247,7 @@ describe("buildFutureScheduleRecalculationPlan", () => {
       requirements: singleStageRequirements,
       workers: singleWorker,
       workerSkills: singleSkill,
+      workerBalerTypeCapabilities: [],
       defaultSchedules: makeSchedule(1, 8),
       availabilityExceptions: [],
     });
@@ -287,6 +290,7 @@ describe("buildFutureScheduleRecalculationPlan", () => {
       requirements,
       workers,
       workerSkills,
+      workerBalerTypeCapabilities: [],
       defaultSchedules,
       availabilityExceptions: [],
     });

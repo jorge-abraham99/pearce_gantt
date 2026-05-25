@@ -8,9 +8,10 @@ async function loadWorkers(): Promise<{ workers: WorkerListItem[]; error: string
   try {
     const supabase = getSupabaseAdmin();
 
-    const [workersRes, skillsRes, scheduleRes, exceptionsRes] = await Promise.all([
+    const [workersRes, skillsRes, capabilitiesRes, scheduleRes, exceptionsRes] = await Promise.all([
       supabase.from("stg_workers").select("*").is("deleted_at", null).order("name"),
       supabase.from("stg_worker_skills").select("*").is("deleted_at", null).order("skill"),
+      supabase.from("worker_baler_type_capabilities").select("*").is("deleted_at", null),
       supabase.from("worker_default_schedule").select("*").is("deleted_at", null).order("day_of_week"),
       supabase
         .from("worker_availability_exceptions")
@@ -21,17 +22,20 @@ async function loadWorkers(): Promise<{ workers: WorkerListItem[]; error: string
 
     if (workersRes.error) throw workersRes.error;
     if (skillsRes.error) throw skillsRes.error;
+    if (capabilitiesRes.error) throw capabilitiesRes.error;
     if (scheduleRes.error) throw scheduleRes.error;
     if (exceptionsRes.error) throw exceptionsRes.error;
 
     const ws = workersRes.data ?? [];
     const sk = skillsRes.data ?? [];
+    const caps = capabilitiesRes.data ?? [];
     const sc = scheduleRes.data ?? [];
     const ex = exceptionsRes.data ?? [];
 
     const workers = ws.map((w) => ({
       worker: w,
       skills: sk.filter((s) => String(s.worker_id) === String(w.id)),
+      balerTypeCapabilities: caps.filter((c) => String(c.worker_id) === String(w.id)),
       defaultSchedule: sc.filter((s) => String(s.worker_id) === String(w.id)),
       exceptions: ex.filter((e) => String(e.worker_id) === String(w.id)),
     }));

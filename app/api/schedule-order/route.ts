@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 
 import { computePlannedAssignments } from "@/lib/scheduler";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import type { PlannedAssignment, SchedulerInput } from "@/types/planner";
+import type {
+  PlannedAssignment,
+  SchedulerInput,
+  WorkerBalerTypeCapability,
+} from "@/types/planner";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +27,7 @@ type ScheduleSnapshot = Pick<
   | "requirements"
   | "workers"
   | "workerSkills"
+  | "workerBalerTypeCapabilities"
   | "defaultSchedules"
   | "availabilityExceptions"
   | "existingAssignments"
@@ -151,6 +156,7 @@ async function loadScheduleSnapshot(
     requirementsRes,
     workersRes,
     workerSkillsRes,
+    workerCapabilitiesRes,
     defaultSchedulesRes,
     exceptionsRes,
     existingRes,
@@ -177,6 +183,11 @@ async function loadScheduleSnapshot(
     supabaseAdmin
       .from("stg_worker_skills")
       .select("id, worker_id, skill, name")
+      .is("deleted_at", null),
+
+    supabaseAdmin
+      .from("worker_baler_type_capabilities")
+      .select("id, worker_id, baler_type_id")
       .is("deleted_at", null),
 
     supabaseAdmin
@@ -218,6 +229,18 @@ async function loadScheduleSnapshot(
       response: NextResponse.json({ error: "Failed to load worker skills" }, { status: 500 }),
     };
   }
+  if (workerCapabilitiesRes.error) {
+    console.error(
+      "[POST /api/schedule-order] worker baler capabilities error:",
+      workerCapabilitiesRes.error,
+    );
+    return {
+      response: NextResponse.json(
+        { error: "Failed to load worker baler capabilities" },
+        { status: 500 },
+      ),
+    };
+  }
   if (defaultSchedulesRes.error) {
     console.error("[POST /api/schedule-order] schedules error:", defaultSchedulesRes.error);
     return {
@@ -242,6 +265,8 @@ async function loadScheduleSnapshot(
     requirements: requirementsRes.data ?? [],
     workers: workersRes.data ?? [],
     workerSkills: workerSkillsRes.data ?? [],
+    workerBalerTypeCapabilities:
+      (workerCapabilitiesRes.data ?? []) as WorkerBalerTypeCapability[],
     defaultSchedules: defaultSchedulesRes.data ?? [],
     availabilityExceptions: exceptionsRes.data ?? [],
     existingAssignments: existingRes.data ?? [],

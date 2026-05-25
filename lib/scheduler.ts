@@ -14,6 +14,7 @@ import type {
   SchedulerInput,
   SchedulerOutput,
   WorkerAvailabilityException,
+  WorkerBalerTypeCapability,
   WorkerDefaultSchedule,
 } from "@/types/planner";
 
@@ -24,6 +25,7 @@ type EnrichedWorker = {
   name: string;
   hours_per_day: number;
   skills: Set<string>;
+  allowedBalerTypeIds: Set<number> | null;
   defaultSchedule: WorkerDefaultSchedule[];
   exceptions: WorkerAvailabilityException[];
 };
@@ -322,11 +324,16 @@ export function computePlannedAssignments(input: SchedulerInput): SchedulerOutpu
     exceptionsByWorker.set(key, list);
   }
 
+  const capabilitiesByWorker = buildCapabilitiesByWorker(
+    input.workerBalerTypeCapabilities,
+  );
+
   const enrichedWorkers: EnrichedWorker[] = input.workers.map((w) => ({
     id: w.id,
     name: w.name,
     hours_per_day: w.hours_per_day,
     skills: new Set(skillsByWorker.get(String(w.id)) ?? []),
+    allowedBalerTypeIds: capabilitiesByWorker.get(String(w.id)) ?? null,
     defaultSchedule: schedulesByWorker.get(String(w.id)) ?? [],
     exceptions: exceptionsByWorker.get(String(w.id)) ?? [],
   }));
@@ -344,7 +351,8 @@ export function computePlannedAssignments(input: SchedulerInput): SchedulerOutpu
 
     const normalizedStage = normalizeSkill(requirement.stage_name);
     const eligibleWorkers = enrichedWorkers.filter((w) =>
-      w.skills.has(normalizedStage),
+      w.skills.has(normalizedStage) &&
+      isWorkerBalerTypeEligible(w, input.balerType.id),
     );
 
     if (eligibleWorkers.length === 0) {
@@ -379,6 +387,29 @@ export function computePlannedAssignments(input: SchedulerInput): SchedulerOutpu
       plannedAssignments.reduce((acc, a) => acc + a.scheduled_hours, 0),
     ),
   };
+}
+
+function buildCapabilitiesByWorker(
+  capabilities: WorkerBalerTypeCapability[],
+): Map<string, Set<number>> {
+  const capabilitiesByWorker = new Map<string, Set<number>>();
+
+  for (const capability of capabilities) {
+    const key = String(capability.worker_id);
+    const current = capabilitiesByWorker.get(key) ?? new Set<number>();
+    current.add(Number(capability.baler_type_id));
+    capabilitiesByWorker.set(key, current);
+  }
+
+  return capabilitiesByWorker;
+}
+
+function isWorkerBalerTypeEligible(
+  worker: EnrichedWorker,
+  balerTypeId: Id,
+): boolean {
+  if (worker.allowedBalerTypeIds === null) return true;
+  return worker.allowedBalerTypeIds.has(Number(balerTypeId));
 }
 
 // ── Private simulation ────────────────────────────────────────────────────────
