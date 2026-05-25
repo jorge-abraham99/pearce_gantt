@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import type { WorkerDefaultSchedule, WorkerListItem } from "@/types/planner";
+import type { BalerType, WorkerDefaultSchedule, WorkerListItem } from "@/types/planner";
 
 const KNOWN_SKILLS = ["welding", "spraying", "assembling"];
 
@@ -51,6 +51,7 @@ function buildScheduleFromData(data: WorkerDefaultSchedule[]): ScheduleRow[] {
 type WorkerFormModalProps = {
   mode: "create" | "edit";
   initialData?: WorkerListItem;
+  balerTypes: BalerType[];
   onSave: () => void;
   onClose: () => void;
 };
@@ -58,6 +59,7 @@ type WorkerFormModalProps = {
 export default function WorkerFormModal({
   mode,
   initialData,
+  balerTypes,
   onSave,
   onClose,
 }: WorkerFormModalProps) {
@@ -69,6 +71,9 @@ export default function WorkerFormModal({
     new Set(initialData?.skills.map((s) => s.skill) ?? []),
   );
   const [customSkill, setCustomSkill] = useState("");
+  const [selectedBalerTypes, setSelectedBalerTypes] = useState<Set<string>>(
+    new Set(initialData?.balerTypeCapabilities.map((capability) => String(capability.baler_type_id)) ?? []),
+  );
   const [schedule, setSchedule] = useState<ScheduleRow[]>(
     initialData?.defaultSchedule && initialData.defaultSchedule.length > 0
       ? buildScheduleFromData(initialData.defaultSchedule)
@@ -91,6 +96,15 @@ export default function WorkerFormModal({
     if (!s) return;
     setSelectedSkills((prev) => new Set([...prev, s]));
     setCustomSkill("");
+  }
+
+  function toggleBalerType(balerTypeId: string) {
+    setSelectedBalerTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(balerTypeId)) next.delete(balerTypeId);
+      else next.add(balerTypeId);
+      return next;
+    });
   }
 
   function toggleDay(idx: number) {
@@ -130,6 +144,7 @@ export default function WorkerFormModal({
     startTransition(async () => {
       try {
         const skillsArr = Array.from(selectedSkills);
+        const balerTypeIds = Array.from(selectedBalerTypes, Number);
 
         if (mode === "create") {
           const res = await fetch("/api/admin/workers", {
@@ -139,6 +154,7 @@ export default function WorkerFormModal({
               name: trimmedName,
               hours_per_day: hours,
               skills: skillsArr,
+              balerTypeCapabilities: balerTypeIds,
               defaultSchedule: schedule,
             }),
           });
@@ -147,7 +163,7 @@ export default function WorkerFormModal({
         } else {
           const id = initialData!.worker.id;
 
-          const [wRes, sRes, scRes] = await Promise.all([
+          const [wRes, sRes, cRes, scRes] = await Promise.all([
             fetch(`/api/admin/workers/${id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -158,6 +174,11 @@ export default function WorkerFormModal({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ skills: skillsArr }),
             }),
+            fetch(`/api/admin/workers/${id}/baler-capabilities`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ balerTypeIds }),
+            }),
             fetch(`/api/admin/workers/${id}/schedule`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -165,7 +186,7 @@ export default function WorkerFormModal({
             }),
           ]);
 
-          for (const r of [wRes, sRes, scRes]) {
+          for (const r of [wRes, sRes, cRes, scRes]) {
             if (!r.ok) {
               const j = await r.json();
               throw new Error((j as { error?: string }).error ?? "Failed to update worker");
@@ -266,6 +287,33 @@ export default function WorkerFormModal({
                   Add
                 </button>
               </div>
+            </section>
+
+            <section>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
+                Restrict capabilities
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {balerTypes.map((balerType) => (
+                  <button
+                    key={String(balerType.id)}
+                    type="button"
+                    onClick={() => toggleBalerType(String(balerType.id))}
+                    className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] transition ${
+                      selectedBalerTypes.has(String(balerType.id))
+                        ? "bg-[var(--accent)] text-white"
+                        : "border border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink)] hover:text-[var(--ink)]"
+                    }`}
+                  >
+                    {balerType.name}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                {selectedBalerTypes.size === 0
+                  ? "No baler limits configured: this worker can be scheduled on any baler type."
+                  : "This worker will only be scheduled on the selected baler types."}
+              </p>
             </section>
 
             {/* Weekly schedule */}

@@ -47,6 +47,7 @@ type RecalculationPlannerInput = Pick<
   SchedulerInput,
   | "workers"
   | "workerSkills"
+  | "workerBalerTypeCapabilities"
   | "defaultSchedules"
   | "availabilityExceptions"
 > & {
@@ -169,6 +170,7 @@ export function buildFutureScheduleRecalculationPlan(
       requirements,
       workers: input.workers,
       workerSkills: input.workerSkills,
+      workerBalerTypeCapabilities: input.workerBalerTypeCapabilities,
       defaultSchedules: input.defaultSchedules,
       availabilityExceptions: input.availabilityExceptions,
       existingAssignments,

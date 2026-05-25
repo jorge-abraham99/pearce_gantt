@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import ExceptionFormModal from "@/components/admin/ExceptionFormModal";
 import WorkerFormModal from "@/components/admin/WorkerFormModal";
 import type {
+  BalerType,
   WorkerAvailabilityException,
   WorkerDetail,
   WorkerListItem,
@@ -75,13 +76,23 @@ export default function WorkerProfileShell({ initialDetail }: WorkerProfileShell
   }
 
   const { worker, skills, defaultSchedule, exceptions } = detail;
+  const allowedBalerTypes = resolveAllowedBalerTypes(
+    detail.availableBalerTypes,
+    detail.balerTypeCapabilities,
+  );
 
   const sortedExceptions = [...exceptions].sort(
     (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
   );
 
   // Build a WorkerListItem to pass to WorkerFormModal
-  const asListItem: WorkerListItem = { worker, skills, defaultSchedule, exceptions };
+  const asListItem: WorkerListItem = {
+    worker,
+    skills,
+    balerTypeCapabilities: detail.balerTypeCapabilities,
+    defaultSchedule,
+    exceptions,
+  };
 
   return (
     <>
@@ -143,6 +154,29 @@ export default function WorkerProfileShell({ initialDetail }: WorkerProfileShell
                           {s.skill}
                         </span>
                       ))
+                    )}
+                  </dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
+                    Restrict capabilities
+                  </dt>
+                  <dd className="mt-1">
+                    {allowedBalerTypes.length === 0 ? (
+                      <p className="text-sm text-[var(--muted)]">
+                        No baler limits configured: this worker can be scheduled on any baler type.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {allowedBalerTypes.map((balerType) => (
+                          <span
+                            key={String(balerType.id)}
+                            className="rounded-full border border-[var(--line)] px-2.5 py-0.5 text-xs font-semibold text-[var(--ink)]"
+                          >
+                            {balerType.name}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </dd>
                 </div>
@@ -264,6 +298,7 @@ export default function WorkerProfileShell({ initialDetail }: WorkerProfileShell
         <WorkerFormModal
           mode="edit"
           initialData={asListItem}
+          balerTypes={detail.availableBalerTypes}
           onSave={handleWorkerSaved}
           onClose={() => setEditWorker(false)}
         />
@@ -283,6 +318,14 @@ export default function WorkerProfileShell({ initialDetail }: WorkerProfileShell
       )}
     </>
   );
+}
+
+function resolveAllowedBalerTypes(
+  balerTypes: BalerType[],
+  capabilities: WorkerListItem["balerTypeCapabilities"],
+): BalerType[] {
+  const allowedIds = new Set(capabilities.map((capability) => String(capability.baler_type_id)));
+  return balerTypes.filter((balerType) => allowedIds.has(String(balerType.id)));
 }
 
 function Field({ label, value }: { label: string; value: string }) {

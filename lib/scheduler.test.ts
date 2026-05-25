@@ -5,6 +5,7 @@ import type {
   BalerRequirement,
   StgWorker,
   WorkerAvailabilityException,
+  WorkerBalerTypeCapability,
   WorkerDefaultSchedule,
   WorkerSkill,
 } from "@/types/planner";
@@ -58,6 +59,7 @@ const baseInput = {
   balerType: { id: 1 as const, name: "HB550" as const },
   workers,
   workerSkills,
+  workerBalerTypeCapabilities: [] as WorkerBalerTypeCapability[],
   defaultSchedules,
   availabilityExceptions: [] as import("@/types/planner").WorkerAvailabilityException[],
   existingAssignments: [] as import("@/types/planner").ExistingAssignment[],
@@ -234,6 +236,46 @@ describe("computePlannedAssignments", () => {
 
     // Worker 2 (10h/day) finishes 9h in 1 day; Worker 4 (6h/day) needs 2 days
     expect(output.assignments[0].worker_id).toBe(2);
+  });
+
+  it("treats workers with no baler capability rows as unrestricted", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-05-11",
+      requirements: [
+        { id: 17, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 4, stage_sequence: 1 },
+      ],
+      workerBalerTypeCapabilities: [],
+    });
+
+    expect(output.assignments[0].worker_id).toBe(2);
+  });
+
+  it("restricts workers to explicit baler capability allowlists", () => {
+    const output = computePlannedAssignments({
+      ...baseInput,
+      startDate: "2026-05-11",
+      requirements: [
+        { id: 18, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 4, stage_sequence: 1 },
+      ],
+      workers: [
+        ...workers,
+        { id: 4, name: "Welder 2", hours_per_day: 8, hours_per_week: null },
+      ],
+      workerSkills: [
+        ...workerSkills,
+        { id: 4, worker_id: 4, skill: "welding", name: "welding" },
+      ],
+      defaultSchedules: [
+        ...defaultSchedules,
+        ...makeSchedule(4, 8),
+      ],
+      workerBalerTypeCapabilities: [
+        { id: 1, worker_id: 2, baler_type_id: 2 },
+      ],
+    });
+
+    expect(output.assignments[0].worker_id).toBe(4);
   });
 
   it("throws when no worker has the required skill", () => {

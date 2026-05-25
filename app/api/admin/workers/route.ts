@@ -8,7 +8,14 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const supabase = getSupabaseAdmin();
 
-  const [workersRes, skillsRes, scheduleRes, exceptionsRes] = await Promise.all([
+  const [
+    workersRes,
+    skillsRes,
+    capabilitiesRes,
+    scheduleRes,
+    exceptionsRes,
+    balerTypesRes,
+  ] = await Promise.all([
     supabase
       .from("stg_workers")
       .select("*")
@@ -20,6 +27,10 @@ export async function GET() {
       .is("deleted_at", null)
       .order("skill", { ascending: true }),
     supabase
+      .from("worker_baler_type_capabilities")
+      .select("*")
+      .is("deleted_at", null),
+    supabase
       .from("worker_default_schedule")
       .select("*")
       .is("deleted_at", null)
@@ -29,30 +40,47 @@ export async function GET() {
       .select("*")
       .is("deleted_at", null)
       .order("start_at", { ascending: true }),
+    supabase
+      .from("stg_baler_types")
+      .select("id, name, active")
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("name", { ascending: true }),
   ]);
 
   if (workersRes.error)
     return NextResponse.json({ error: workersRes.error.message }, { status: 500 });
   if (skillsRes.error)
     return NextResponse.json({ error: skillsRes.error.message }, { status: 500 });
+  if (capabilitiesRes.error) {
+    return NextResponse.json({ error: capabilitiesRes.error.message }, { status: 500 });
+  }
   if (scheduleRes.error)
     return NextResponse.json({ error: scheduleRes.error.message }, { status: 500 });
   if (exceptionsRes.error)
     return NextResponse.json({ error: exceptionsRes.error.message }, { status: 500 });
+  if (balerTypesRes.error) {
+    return NextResponse.json({ error: balerTypesRes.error.message }, { status: 500 });
+  }
 
   const workers = workersRes.data ?? [];
   const skills = skillsRes.data ?? [];
+  const capabilities = capabilitiesRes.data ?? [];
   const schedules = scheduleRes.data ?? [];
   const exceptions = exceptionsRes.data ?? [];
+  const balerTypes = balerTypesRes.data ?? [];
 
   const items = workers.map((w) => ({
     worker: w,
     skills: skills.filter((s) => String(s.worker_id) === String(w.id)),
+    balerTypeCapabilities: capabilities.filter(
+      (c) => String(c.worker_id) === String(w.id),
+    ),
     defaultSchedule: schedules.filter((s) => String(s.worker_id) === String(w.id)),
     exceptions: exceptions.filter((e) => String(e.worker_id) === String(w.id)),
   }));
 
-  return NextResponse.json({ workers: items });
+  return NextResponse.json({ workers: items, balerTypes });
 }
 
 export async function POST(request: NextRequest) {
@@ -63,10 +91,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, hours_per_day, skills, defaultSchedule } = body as {
+  const { name, hours_per_day, skills, balerTypeCapabilities, defaultSchedule } = body as {
     name?: string;
     hours_per_day?: number;
     skills?: string[];
+    balerTypeCapabilities?: number[];
     defaultSchedule?: Array<{
       day_of_week: number;
       is_working: boolean;
@@ -123,6 +152,19 @@ export async function POST(request: NextRequest) {
       .from("worker_default_schedule")
       .insert(scheduleRows);
     if (schedErr) return NextResponse.json({ error: schedErr.message }, { status: 500 });
+  }
+
+  if (Array.isArray(balerTypeCapabilities) && balerTypeCapabilities.length > 0) {
+    const capabilityRows = balerTypeCapabilities.map((balerTypeId) => ({
+      worker_id: worker.id,
+      baler_type_id: balerTypeId,
+    }));
+    const { error: capabilityErr } = await supabase
+      .from("worker_baler_type_capabilities")
+      .insert(capabilityRows);
+    if (capabilityErr) {
+      return NextResponse.json({ error: capabilityErr.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ worker }, { status: 201 });

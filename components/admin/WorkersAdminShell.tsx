@@ -7,6 +7,7 @@ import AvailabilityCalendar from "@/components/admin/AvailabilityCalendar";
 import ExceptionFormModal from "@/components/admin/ExceptionFormModal";
 import WorkerFormModal from "@/components/admin/WorkerFormModal";
 import type {
+  BalerType,
   Id,
   WorkerAvailabilityException,
   WorkerListItem,
@@ -24,11 +25,16 @@ type ExceptionModalState =
 
 type WorkersAdminShellProps = {
   initialWorkers: WorkerListItem[];
+  initialBalerTypes: BalerType[];
 };
 
-export default function WorkersAdminShell({ initialWorkers }: WorkersAdminShellProps) {
+export default function WorkersAdminShell({
+  initialWorkers,
+  initialBalerTypes,
+}: WorkersAdminShellProps) {
   const [view, setView] = useState<"list" | "calendar">("list");
   const [workers, setWorkers] = useState<WorkerListItem[]>(initialWorkers);
+  const [balerTypes, setBalerTypes] = useState<BalerType[]>(initialBalerTypes);
   const [workerModal, setWorkerModal] = useState<WorkerModalState>(null);
   const [exceptionModal, setExceptionModal] = useState<ExceptionModalState>(null);
   const [, startTransition] = useTransition();
@@ -36,8 +42,12 @@ export default function WorkersAdminShell({ initialWorkers }: WorkersAdminShellP
   async function refreshWorkers() {
     const res = await fetch("/api/admin/workers", { cache: "no-store" });
     if (res.ok) {
-      const json = (await res.json()) as { workers: WorkerListItem[] };
+      const json = (await res.json()) as {
+        workers: WorkerListItem[];
+        balerTypes?: BalerType[];
+      };
       setWorkers(json.workers ?? []);
+      setBalerTypes(json.balerTypes ?? []);
     }
   }
 
@@ -117,6 +127,7 @@ export default function WorkersAdminShell({ initialWorkers }: WorkersAdminShellP
         <WorkerFormModal
           mode={workerModal.mode}
           initialData={workerModal.mode === "edit" ? workerModal.item : undefined}
+          balerTypes={balerTypes}
           onSave={() => {
             setWorkerModal(null);
             startTransition(async () => { await refreshWorkers(); });
