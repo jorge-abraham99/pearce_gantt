@@ -31,24 +31,28 @@ function makeSchedule(workerId: number, hoursPerDay: number): WorkerDefaultSched
 
 const workers: StgWorker[] = [
   { id: 1, name: "Welder 1", hours_per_day: 8, hours_per_week: null },
-  { id: 2, name: "Assembler 1", hours_per_day: 8, hours_per_week: null },
+  { id: 2, name: "Sprayer 1", hours_per_day: 8, hours_per_week: null },
+  { id: 3, name: "Assembler 1", hours_per_day: 8, hours_per_week: null },
 ];
 
 const workerSkills: WorkerSkill[] = [
   { id: 1, worker_id: 1, skill: "welding", name: "welding" },
-  { id: 2, worker_id: 2, skill: "assembling", name: "assembling" },
+  { id: 2, worker_id: 2, skill: "spraying", name: "spraying" },
+  { id: 3, worker_id: 3, skill: "assembling", name: "assembling" },
 ];
 
 const defaultSchedules: WorkerDefaultSchedule[] = [
   ...makeSchedule(1, 8),
   ...makeSchedule(2, 8),
+  ...makeSchedule(3, 8),
 ];
 
 const balerTypes: BalerType[] = [{ id: 1, name: "HB550" }];
 
 const requirements: BalerRequirement[] = [
   { id: 1, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 4, stage_sequence: 1 },
-  { id: 2, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 2, stage_sequence: 2 },
+  { id: 2, baler_type_id: 1, stage_name: "spraying", stage_hour_requirements: 1, stage_sequence: 2 },
+  { id: 3, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 2, stage_sequence: 3 },
 ];
 
 function assignment(
@@ -86,9 +90,20 @@ describe("buildFutureScheduleRecalculationPlan", () => {
           id: 2,
           order_id: 100,
           worker_id: 2,
-          stage: "assembling",
+          stage: "spraying",
           stage_order: 2,
           schedule_start: "2026-05-12T12:00:00",
+          schedule_end: "2026-05-12T13:00:00",
+          scheduled_hours: 1,
+          status: "scheduled",
+        }),
+        assignment({
+          id: 5,
+          order_id: 100,
+          worker_id: 3,
+          stage: "assembling",
+          stage_order: 3,
+          schedule_start: "2026-05-12T13:00:00",
           schedule_end: "2026-05-12T14:00:00",
           scheduled_hours: 2,
           status: "scheduled",
@@ -108,10 +123,21 @@ describe("buildFutureScheduleRecalculationPlan", () => {
           id: 4,
           order_id: 200,
           worker_id: 2,
-          stage: "assembling",
+          stage: "spraying",
           stage_order: 2,
           schedule_start: "2026-05-12T08:00:00",
-          schedule_end: "2026-05-12T10:00:00",
+          schedule_end: "2026-05-12T09:00:00",
+          scheduled_hours: 1,
+          status: "scheduled",
+        }),
+        assignment({
+          id: 6,
+          order_id: 200,
+          worker_id: 3,
+          stage: "assembling",
+          stage_order: 3,
+          schedule_start: "2026-05-12T09:00:00",
+          schedule_end: "2026-05-12T11:00:00",
           scheduled_hours: 2,
           status: "scheduled",
         }),
@@ -131,9 +157,9 @@ describe("buildFutureScheduleRecalculationPlan", () => {
     expect(plan.ordersSkippedStarted).toBe(1);
     expect(plan.eligibleOrderIds).toEqual([100]);
     expect(plan.skippedOrderIds).toEqual([200]);
-    expect(plan.assignmentIdsToRemove).toEqual([1, 2]);
-    expect(plan.assignmentsFrozen).toBe(2);
-    expect(plan.assignmentsToCreate).toHaveLength(2);
+    expect(plan.assignmentIdsToRemove).toEqual([1, 2, 5]);
+    expect(plan.assignmentsFrozen).toBe(3);
+    expect(plan.assignmentsToCreate).toHaveLength(3);
     expect(new Set(plan.assignmentsToCreate.map((item) => item.order_id))).toEqual(
       new Set([100]),
     );
@@ -168,9 +194,9 @@ describe("buildFutureScheduleRecalculationPlan", () => {
         assignment({
           id: 12,
           order_id: 200,
-          worker_id: 2,
+          worker_id: 3,
           stage: "assembling",
-          stage_order: 2,
+          stage_order: 3,
           schedule_start: "2026-05-14T08:00:00",
           schedule_end: "2026-05-14T10:00:00",
           scheduled_hours: 2,
@@ -235,7 +261,7 @@ describe("buildFutureScheduleRecalculationPlan", () => {
           order_id: 200,
           worker_id: 1,
           stage: "assembling",
-          stage_order: 2,
+          stage_order: 3,
           schedule_start: "2026-05-13T08:00:00",
           schedule_end: "2026-05-13T10:00:00",
           scheduled_hours: 2,
@@ -277,10 +303,21 @@ describe("buildFutureScheduleRecalculationPlan", () => {
           id: 32,
           order_id: 100,
           worker_id: 2,
-          stage: "assembling",
+          stage: "spraying",
           stage_order: 2,
           schedule_start: "2026-05-12T12:00:00",
-          schedule_end: "2026-05-12T14:00:00",
+          schedule_end: "2026-05-12T13:00:00",
+          scheduled_hours: 1,
+          status: "scheduled",
+        }),
+        assignment({
+          id: 33,
+          order_id: 100,
+          worker_id: 3,
+          stage: "assembling",
+          stage_order: 3,
+          schedule_start: "2026-05-12T13:00:00",
+          schedule_end: "2026-05-12T15:00:00",
           scheduled_hours: 2,
           status: "scheduled",
         }),

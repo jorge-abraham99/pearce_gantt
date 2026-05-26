@@ -9,8 +9,8 @@ type ModalState = null | { mode: "create" } | { mode: "edit"; baler: BalerAdminR
 
 const STAGE_COLS = [
   { key: "weldingHours", label: "Welding" },
-  { key: "assemblyHours", label: "Assembly" },
   { key: "sprayingHours", label: "Spraying" },
+  { key: "assemblyHours", label: "Assembly" },
 ] as const;
 
 export default function BalersAdminShell({
