@@ -51,7 +51,7 @@ async function loadBalers(): Promise<{ balers: BalerAdminRow[]; error: string | 
   } catch (err) {
     return {
       balers: [],
-      error: err instanceof Error ? err.message : "Failed to load balers",
+      error: err instanceof Error ? err.message : "Failed to load machines",
     };
   }
 }
@@ -63,7 +63,7 @@ export default async function BalersAdminPage() {
     <>
       {error ? (
         <section className="mb-3 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-900">
-          <h2 className="font-display text-xl font-semibold">Failed to load balers</h2>
+          <h2 className="font-display text-xl font-semibold">Failed to load machines</h2>
           <p className="mt-1 text-sm">{error}</p>
         </section>
       ) : null}

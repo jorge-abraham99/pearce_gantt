@@ -311,8 +311,8 @@ export default function WorkerFormModal({
               </div>
               <p className="mt-2 text-sm text-[var(--muted)]">
                 {selectedBalerTypes.size === 0
-                  ? "No baler limits configured: this worker can be scheduled on any baler type."
-                  : "This worker will only be scheduled on the selected baler types."}
+                  ? "No machine limits configured: this worker can be scheduled on any machine type."
+                  : "This worker will only be scheduled on the selected machine types."}
               </p>
             </section>
 

@@ -55,7 +55,7 @@ export default function BalerFormModal({
     setError(null);
 
     if (!name.trim()) {
-      setError("Baler name is required.");
+      setError("Machine name is required.");
       return;
     }
     for (const { label, key } of STAGE_FIELDS) {
@@ -101,7 +101,7 @@ export default function BalerFormModal({
         {/* Header */}
         <div className="flex items-center justify-between gap-4 border-b border-[var(--line)] px-6 py-4">
           <h2 className="font-display text-xl font-semibold text-[var(--ink)]">
-            {mode === "create" ? "Add baler" : `Edit ${initialData?.name ?? "baler"}`}
+            {mode === "create" ? "Add machine" : `Edit ${initialData?.name ?? "machine"}`}
           </h2>
           <button
             type="button"
@@ -115,9 +115,9 @@ export default function BalerFormModal({
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <div className="grid gap-5">
-            {/* Baler name */}
+            {/* Machine name */}
             <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
-              Baler name
+              Machine name
               <input
                 type="text"
                 value={name}
@@ -189,7 +189,7 @@ export default function BalerFormModal({
             disabled={!isValid || isPending}
             className="rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-bold uppercase tracking-[0.14em] text-white transition hover:bg-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isPending ? "Saving…" : mode === "create" ? "Add baler" : "Save changes"}
+            {isPending ? "Saving…" : mode === "create" ? "Add machine" : "Save changes"}
           </button>
         </div>
       </div>

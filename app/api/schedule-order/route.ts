@@ -208,13 +208,13 @@ async function loadScheduleSnapshot(
 
   if (balerTypeRes.error || !balerTypeRes.data) {
     return {
-      response: NextResponse.json({ error: "Baler type not found" }, { status: 404 }),
+      response: NextResponse.json({ error: "Machine type not found" }, { status: 404 }),
     };
   }
   if (requirementsRes.error) {
     console.error("[POST /api/schedule-order] requirements error:", requirementsRes.error);
     return {
-      response: NextResponse.json({ error: "Failed to load baler requirements" }, { status: 500 }),
+      response: NextResponse.json({ error: "Failed to load machine requirements" }, { status: 500 }),
     };
   }
   if (workersRes.error) {
@@ -236,7 +236,7 @@ async function loadScheduleSnapshot(
     );
     return {
       response: NextResponse.json(
-        { error: "Failed to load worker baler capabilities" },
+        { error: "Failed to load worker machine capabilities" },
         { status: 500 },
       ),
     };
