@@ -485,8 +485,8 @@ function buildRecalculationMessage(
 
 const CANONICAL_STAGE_ORDER: Record<string, number> = {
   welding: 1,
-  assembling: 2,
-  spraying: 3,
+  spraying: 2,
+  assembling: 3,
 };
 
 function buildTaskOptions(assignments: GanttAssignment[]): string[] {

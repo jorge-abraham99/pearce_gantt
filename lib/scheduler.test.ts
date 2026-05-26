@@ -51,8 +51,8 @@ const defaultSchedules: WorkerDefaultSchedule[] = [
 
 const requirements: BalerRequirement[] = [
   { id: 1, baler_type_id: 1, stage_name: "welding", stage_hour_requirements: 12, stage_sequence: 1 },
-  { id: 2, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 10, stage_sequence: 2 },
-  { id: 3, baler_type_id: 1, stage_name: "spraying", stage_hour_requirements: 6, stage_sequence: 3 },
+  { id: 2, baler_type_id: 1, stage_name: "spraying", stage_hour_requirements: 6, stage_sequence: 2 },
+  { id: 3, baler_type_id: 1, stage_name: "assembling", stage_hour_requirements: 10, stage_sequence: 3 },
 ];
 
 const baseInput = {
@@ -107,14 +107,18 @@ describe("computePlannedAssignments", () => {
     expect(output.assignments.map((a) => a.stage)).toEqual([
       "welding",
       "welding",
-      "assembling",
-      "assembling",
       "spraying",
       "spraying",
+      "assembling",
+      "assembling",
     ]);
-    // assembling must not start before welding finishes
+    // spraying must not start before welding finishes
     expect(new Date(output.assignments[2].schedule_start).getTime()).toBeGreaterThanOrEqual(
       new Date(output.assignments[1].schedule_end).getTime(),
+    );
+    // assembling must not start before spraying finishes
+    expect(new Date(output.assignments[4].schedule_start).getTime()).toBeGreaterThanOrEqual(
+      new Date(output.assignments[3].schedule_end).getTime(),
     );
   });
 

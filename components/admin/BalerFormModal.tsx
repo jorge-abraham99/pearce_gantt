@@ -6,8 +6,8 @@ import type { BalerAdminRow } from "@/types/planner";
 
 const STAGE_FIELDS = [
   { key: "weldingHours", label: "Welding", stageName: "welding" },
-  { key: "assemblyHours", label: "Assembly", stageName: "assembling" },
   { key: "sprayingHours", label: "Spraying", stageName: "spraying" },
+  { key: "assemblyHours", label: "Assembly", stageName: "assembling" },
 ] as const;
 
 type StageKey = (typeof STAGE_FIELDS)[number]["key"];
