@@ -4,6 +4,34 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
+function normalizeBalerTypeIds(values: unknown[]): {
+  ids: number[];
+  hasInvalidEntries: boolean;
+} {
+  const seen = new Set<number>();
+  const normalizedIds: number[] = [];
+  let hasInvalidEntries = false;
+
+  for (const value of values) {
+    if (!Number.isInteger(value)) {
+      hasInvalidEntries = true;
+      continue;
+    }
+
+    const balerTypeId = Number(value);
+    if (balerTypeId <= 0) {
+      hasInvalidEntries = true;
+      continue;
+    }
+    if (seen.has(balerTypeId)) continue;
+
+    seen.add(balerTypeId);
+    normalizedIds.push(balerTypeId);
+  }
+
+  return { ids: normalizedIds, hasInvalidEntries };
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -25,25 +53,34 @@ export async function PUT(
   }
 
   const supabase = getSupabaseAdmin();
-  const timestamp = new Date().toISOString();
+  const workerId = Number(id);
+  const {
+    ids: normalizedBalerTypeIds,
+    hasInvalidEntries,
+  } = normalizeBalerTypeIds(balerTypeIds);
 
-  const { error: delErr } = await supabase
-    .from("worker_baler_type_capabilities")
-    .update({ deleted_at: timestamp, updated_at: timestamp })
-    .eq("worker_id", id)
-    .is("deleted_at", null);
+  if (!Number.isInteger(workerId) || workerId <= 0) {
+    return NextResponse.json({ error: "Invalid worker id" }, { status: 400 });
+  }
 
-  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+  if (hasInvalidEntries) {
+    return NextResponse.json(
+      { error: "balerTypeIds must contain only positive integers" },
+      { status: 400 },
+    );
+  }
 
-  if (balerTypeIds.length > 0) {
-    const rows = balerTypeIds.map((balerTypeId) => ({
-      worker_id: id,
-      baler_type_id: balerTypeId,
-    }));
-    const { error: insErr } = await supabase
-      .from("worker_baler_type_capabilities")
-      .insert(rows);
-    if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 });
+  const { error } = await supabase.rpc("admin_set_worker_baler_type_capabilities", {
+    p_worker_id: workerId,
+    p_baler_type_ids: normalizedBalerTypeIds,
+  });
+
+  if (error) {
+    const status =
+      error.code === "P0002" ? 404 :
+      error.code === "22023" ? 400 :
+      500;
+    return NextResponse.json({ error: error.message }, { status });
   }
 
   return NextResponse.json({ success: true });
