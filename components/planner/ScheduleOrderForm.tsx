@@ -79,7 +79,7 @@ export default function ScheduleOrderForm({
             Schedule a new order
           </h3>
           <p className="text-sm text-[var(--muted)]">
-            Pick a baler type and start date. Stages are auto-assigned.
+            Pick a machine type and start date. Stages are auto-assigned.
           </p>
         </div>
         <button
@@ -126,7 +126,7 @@ export default function ScheduleOrderForm({
           ) : null}
         </label>
         <label className="grid gap-1 text-sm font-semibold text-[var(--ink)]">
-          Baler type
+          Machine type
           <select
             value={balerTypeId}
             onChange={(event) => setBalerTypeId(event.target.value)}
@@ -134,7 +134,7 @@ export default function ScheduleOrderForm({
             className="rounded-xl border border-[var(--line)] bg-white px-3 py-2 outline-none transition focus:border-[var(--accent)]"
           >
             {balerTypes.length === 0 ? (
-              <option value="">No baler types available</option>
+              <option value="">No machine types available</option>
             ) : null}
             {balerTypes.map((balerType) => (
               <option key={String(balerType.id)} value={String(balerType.id)}>

@@ -164,7 +164,7 @@ export default function WorkerProfileShell({ initialDetail }: WorkerProfileShell
                   <dd className="mt-1">
                     {allowedBalerTypes.length === 0 ? (
                       <p className="text-sm text-[var(--muted)]">
-                        No baler limits configured: this worker can be scheduled on any baler type.
+                        No machine limits configured: this worker can be scheduled on any machine type.
                       </p>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">

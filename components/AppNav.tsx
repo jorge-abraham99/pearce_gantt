@@ -7,7 +7,7 @@ const TABS = [
   { label: "Schedule", href: "/schedule", prefix: "/schedule" },
   { label: "Staff", href: "/admin/workers", prefix: "/admin/workers" },
   { label: "Availability", href: "/availability", prefix: "/availability" },
-  { label: "Balers", href: "/admin/balers", prefix: "/admin/balers" },
+  { label: "Machines", href: "/admin/balers", prefix: "/admin/balers" },
 ];
 
 export default function AppNav() {

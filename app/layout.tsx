@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Pearce Planner",
-  description: "Baler production scheduling and worker Gantt.",
+  description: "Machine production scheduling and worker Gantt.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

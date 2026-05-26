@@ -46,7 +46,7 @@ export default function BalersAdminShell({
             Pearce Planner
           </p>
           <h1 className="font-display text-xl font-semibold leading-tight text-[var(--ink)] md:text-2xl">
-            Balers
+            Machines
           </h1>
         </div>
         <div className="ml-auto">
@@ -55,7 +55,7 @@ export default function BalersAdminShell({
             onClick={() => setModal({ mode: "create" })}
             className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-bold uppercase tracking-[0.14em] text-white transition hover:bg-[var(--ink)]"
           >
-            + Add baler
+            + Add machine
           </button>
         </div>
       </div>
@@ -68,7 +68,7 @@ export default function BalersAdminShell({
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-[var(--line)] bg-[var(--panel-2)]">
-                <Th>Baler</Th>
+                <Th>Machine</Th>
                 {STAGE_COLS.map((c) => (
                   <Th key={c.key}>{c.label}</Th>
                 ))}
@@ -113,7 +113,7 @@ export default function BalersAdminShell({
       {balers.length > 0 && (
         <div className="border-t border-[var(--line)] bg-[var(--panel-2)] px-5 py-3">
           <p className="text-sm text-[var(--muted)]">
-            {balers.length} baler{balers.length === 1 ? "" : "s"}
+            {balers.length} machine{balers.length === 1 ? "" : "s"}
             {" · "}avg{" "}
             {Math.round(balers.reduce((acc, b) => acc + b.totalHours, 0) / balers.length)}h
             total per build
@@ -147,17 +147,17 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
     <div className="flex h-full items-center justify-center p-10">
       <div className="rounded-3xl border border-dashed border-[var(--line)] bg-white/60 p-10 text-center">
         <p className="font-display text-2xl font-semibold text-[var(--ink)]">
-          No baler types yet.
+          No machine types yet.
         </p>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Add your first baler to get started.
+          Add your first machine to get started.
         </p>
         <button
           type="button"
           onClick={onAdd}
           className="mt-4 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-bold uppercase tracking-[0.14em] text-white transition hover:bg-[var(--ink)]"
         >
-          + Add baler
+          + Add machine
         </button>
       </div>
     </div>

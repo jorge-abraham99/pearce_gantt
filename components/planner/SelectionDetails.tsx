@@ -41,7 +41,7 @@ export default function SelectionDetails({
       <DetailFrame title="Assignment" onClear={onClear}>
         <Field label="Order" value={assignment.order_number} />
         <Field label="Customer" value={assignment.customer ?? "Unassigned"} />
-        <Field label="Baler" value={assignment.baler_name} />
+        <Field label="Machine" value={assignment.baler_name} />
         <Field label="Stage" value={assignment.stage} />
         <Field label="Worker" value={assignment.worker_name} />
         <Field label="Hours" value={`${assignment.scheduled_hours}h`} />
@@ -63,7 +63,7 @@ export default function SelectionDetails({
       <DetailFrame title={formatOrderPrimary(row)} onClear={onClear}>
         <Field label="Order" value={row.orderNumber} />
         <Field label="Customer" value={row.customer ?? "Unassigned"} />
-        <Field label="Baler" value={row.balerName} />
+        <Field label="Machine" value={row.balerName} />
         <Field label="Start" value={formatDateTime(row.start)} />
         <Field label="End" value={formatDateTime(row.end)} />
         <Field label="Total hours" value={`${formatHours(row.totalHours)}h`} />
