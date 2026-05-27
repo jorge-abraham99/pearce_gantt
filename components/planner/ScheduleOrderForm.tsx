@@ -12,6 +12,7 @@ type ScheduleOrderFormProps = {
   balerTypes: BalerType[];
   customers: Customer[];
   onScheduled: (response: ScheduleOrderResponse) => void;
+  onManageCustomers: () => void;
   onClose: () => void;
 };
 
@@ -29,6 +30,7 @@ export default function ScheduleOrderForm({
   balerTypes,
   customers,
   onScheduled,
+  onManageCustomers,
   onClose,
 }: ScheduleOrderFormProps) {
   const [startDate, setStartDate] = useState(todayDateValue);
@@ -82,13 +84,22 @@ export default function ScheduleOrderForm({
             Pick a machine type and start date. Stages are auto-assigned.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] hover:border-[var(--ink)] hover:text-[var(--ink)]"
-        >
-          Close
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onManageCustomers}
+            className="rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] hover:border-[var(--ink)] hover:text-[var(--ink)]"
+          >
+            Rename customers
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)] hover:border-[var(--ink)] hover:text-[var(--ink)]"
+          >
+            Close
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
