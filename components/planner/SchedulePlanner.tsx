@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import BottomPanel from "@/components/planner/BottomPanel";
+import CustomerNameModal from "@/components/planner/CustomerNameModal";
 import OrderGanttView from "@/components/planner/OrderGanttView";
 import PlannerStatsStrip from "@/components/planner/PlannerStats";
 import PlannerToolbar from "@/components/planner/PlannerToolbar";
@@ -120,6 +121,7 @@ export default function SchedulePlanner({
   const [highlightedOrderId, setHighlightedOrderId] = useState<Id | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isCustomerNameEditorOpen, setIsCustomerNameEditorOpen] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [lastSchedule, setLastSchedule] =
     useState<ScheduleOrderResponse | null>(null);
@@ -245,16 +247,19 @@ export default function SchedulePlanner({
   function handleScheduled(response: ScheduleOrderResponse) {
     setLastSchedule(response);
     setPlannerNotice(null);
-    setCustomers((current) => ensureCustomerOption(current, response.customer));
-
-    void refreshGantt(response.orderId)
-      .catch((err) => {
-        setPlannerNotice({
-          tone: "error",
-          message:
-            err instanceof Error ? err.message : "Failed to refresh gantt",
-        });
+    void Promise.all([
+      refreshGantt(response.orderId),
+      refreshCustomers().catch(() => {
+        setCustomers((current) =>
+          ensureCustomerOption(current, response.customer),
+        );
+      }),
+    ]).catch((err) => {
+      setPlannerNotice({
+        tone: "error",
+        message: err instanceof Error ? err.message : "Failed to refresh gantt",
       });
+    });
   }
 
   function handleRecalculateClick() {
@@ -316,6 +321,15 @@ export default function SchedulePlanner({
     if (highlightOrderId !== undefined && highlightOrderId !== null) {
       setHighlightedOrderId(highlightOrderId);
     }
+  }
+
+  async function refreshCustomers() {
+    const res = await fetch("/api/admin/customers", { cache: "no-store" });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.error ?? "Failed to refresh customers");
+    }
+    setCustomers((json.customers ?? []) as Customer[]);
   }
 
   function toggleOrder(orderId: Id) {
@@ -429,6 +443,7 @@ export default function SchedulePlanner({
         workerRows={workerRows}
         lastSchedule={lastSchedule}
         onScheduled={handleScheduled}
+        onManageCustomers={() => setIsCustomerNameEditorOpen(true)}
         onCloseSchedule={() => setIsScheduleOpen(false)}
         onClearSelection={() => setSelection(null)}
         onOpenSchedule={() => {
@@ -436,6 +451,22 @@ export default function SchedulePlanner({
           setSelection(null);
         }}
       />
+
+      {isCustomerNameEditorOpen ? (
+        <CustomerNameModal
+          customers={customers}
+          onClose={() => setIsCustomerNameEditorOpen(false)}
+          onSaved={async (nextCustomers) => {
+            setCustomers(nextCustomers);
+            await refreshGantt();
+            setIsCustomerNameEditorOpen(false);
+            setPlannerNotice({
+              tone: "success",
+              message: "Customer names updated.",
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

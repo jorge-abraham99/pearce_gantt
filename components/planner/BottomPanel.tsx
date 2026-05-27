@@ -32,6 +32,7 @@ type BottomPanelProps = {
   workerRows: WorkerGanttRow[];
   lastSchedule: ScheduleOrderResponse | null;
   onScheduled: (response: ScheduleOrderResponse) => void;
+  onManageCustomers: () => void;
   onCloseSchedule: () => void;
   onClearSelection: () => void;
   onOpenSchedule: () => void;
@@ -47,6 +48,7 @@ export default function BottomPanel({
   workerRows,
   lastSchedule,
   onScheduled,
+  onManageCustomers,
   onCloseSchedule,
   onClearSelection,
   onOpenSchedule,
@@ -59,6 +61,7 @@ export default function BottomPanel({
             balerTypes={balerTypes}
             customers={customers}
             onScheduled={onScheduled}
+            onManageCustomers={onManageCustomers}
             onClose={onCloseSchedule}
           />
           {lastSchedule ? <LastScheduleCard last={lastSchedule} /> : null}
